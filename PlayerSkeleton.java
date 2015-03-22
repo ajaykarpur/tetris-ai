@@ -1,5 +1,5 @@
 
-public class Player {
+public class PlayerSkeleton {
 
 	//implement this function to have a working system
 	public int pickMove(State s, int[][] legalMoves) {
@@ -10,7 +10,7 @@ public class Player {
 	public static void main(String[] args) {
 		State s = new State();
 		new TFrame(s);
-		Player p = new Player();
+		PlayerSkeleton p = new PlayerSkeleton();
 		while(!s.hasLost()) {
 			s.makeMove(p.pickMove(s,s.legalMoves()));
 			s.draw();
