@@ -70,8 +70,8 @@ public class Genetic {
 		//either one or the other to assign to each new individual.
 		Individual[] newGen = new Individual[gen.length];
 		for(int i = 0 ; i < gen.length - 1 ; i += 2) {
-			Individual a = new Individual(REFERENCE.length(), false);
-			Individual b = new Individual(REFERENCE.length(), false);
+			Individual a = new Individual(gen[0].features.length, false);
+			Individual b = new Individual(gen[0].features.length, false);
 			
 			//Alternate method of breeding. Flip a coin on every feature to
 			//determine which child should inherit from whom. This might be
@@ -108,8 +108,16 @@ public class Genetic {
 			for(int j = 0 ; j < gen[i].features.length ; j++) {
 				if(RANDOM.nextFloat() < mutation) {
 					//Again here for the purposes of the example I'm mutating by an integer value
-					int amt = (int) ((RANDOM.nextBoolean() ? 1 : -1) * 4 * RANDOM.nextFloat());
+					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
+					int amt = 0;
+					while(amt == 0)
+						amt = (int) ((RANDOM.nextBoolean() ? 1 : -1) * 2 * RANDOM.nextFloat());
+					
 					gen[i].features[j] += amt;
+					if(gen[i].features[j] > 255)
+						gen[i].features[j] = 255;
+					else if(gen[i].features[j] < 0)
+						gen[i].features[j] = 0;
 				}
 			}
 		}
@@ -153,7 +161,7 @@ public class Genetic {
 	 */
 	public static void main(String[] args) {
 		Genetic p = new Genetic();
-		p.genetic(1024, 0, 0.015f);
+		p.genetic(8192, 0, 0.015f);
 	}
 
 }
