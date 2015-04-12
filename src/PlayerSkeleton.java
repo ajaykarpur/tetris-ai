@@ -10,6 +10,7 @@ public class PlayerSkeleton {
 		
 		private int[][] fieldCopy;
 		private int[] topCopy;
+
 				
 		private int getHoles() {
 			int holes = 0;
@@ -38,8 +39,15 @@ public class PlayerSkeleton {
 		}
 		
 		private float testMove(int orient, int slot) {
-			// TODO Copy data over to topCopy and fieldCopy
-			
+			//Copy data over to topCopy and fieldCopy
+			int[] topCopy = new int[COLS];
+			int[][] fieldCopy = new int[ROWS][COLS];
+			System.arraycopy( this.getTop(), 0, topCopy, 0, COLS );
+			for(int i = 0;i<ROWS;i++){
+				System.arraycopy(this.getField()[i], 0, fieldCopy[i], 0, COLS);
+			}
+
+		
 			int rowsCleared = dryRunMove(this.nextPiece, orient, slot);
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
 			int[] heuristics = {this.getRowsCleared(),
@@ -48,6 +56,7 @@ public class PlayerSkeleton {
 								bumpinessAndHeight[1] };
 			
 			// TODO Compute score - heuristics dot weights.
+			
 			
 			return 0.f;
 			
