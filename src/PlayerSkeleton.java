@@ -47,18 +47,23 @@ public class PlayerSkeleton {
 				System.arraycopy(this.getField()[i], 0, fieldCopy[i], 0, COLS);
 			}
 
-		
+			float score = 0;
+			//weights, initially evenly distributed
+			int[] weights = {0.25, 0.25, 0.25, 0.25};
+			
+			//initialize heuristics
 			int rowsCleared = dryRunMove(this.nextPiece, orient, slot);
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
 			int[] heuristics = {this.getRowsCleared(),
 								getHoles(),
 								bumpinessAndHeight[0],
 								bumpinessAndHeight[1] };
+
+			//score/evaluation function is dot product of heuristics[4] and weights[4]
+			for (int i = 0; i < heuristics.length; i++)
+				float score = heuristics[i]*weights[i];
 			
-			// TODO Compute score - heuristics dot weights.
-			
-			
-			return 0.f;
+			return score;
 			
 		}
 		
