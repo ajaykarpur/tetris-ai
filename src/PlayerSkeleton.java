@@ -24,7 +24,7 @@ public class PlayerSkeleton {
 				}
 			}
 
-			return 0;
+			return holes;
 		}
 		
 		private int[] getBumpinessAndHeight() {			
