@@ -24,6 +24,17 @@ public class PlayerSkeleton {
 		}
 				
 		private int getHoles() {
+			int holes = 0;
+
+			//start looking for empty spaces below top of pile
+			for (int col = 0; col < this.getTop().length; col++){
+				for (int row = this.getTop()[col]; row >= 0; row--){
+					//if empty space encountered below top, it's a hole
+					if (this.getField[row][col] == 0)
+						holes++;
+				}
+			}
+
 			return 0;
 		}
 		
