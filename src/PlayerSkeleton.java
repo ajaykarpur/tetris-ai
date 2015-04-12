@@ -13,9 +13,31 @@ public class PlayerSkeleton {
 		 * @return The number of rows that would be cleared by
 		 * making the given move.
 		 */
-		public int testMove(int orient, int slot) {
+		public int[] getHeuristicVector() {
+			return new int[] {getAggregateHeight(), 
+							getCompleteLines(),
+							getHoles(),
+							getBumpiness()};
+		}
+		
+		private int getAggregateHeight() {
 			return 0;
 		}
+		
+		private int getCompleteLines() {
+			return 0;
+		}
+		
+		private int getHoles() {
+			return 0;
+		}
+		
+		private int getBumpiness() {
+			return 0;
+		}
+		
+		
+		
 		
 	}
 	
