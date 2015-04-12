@@ -128,7 +128,17 @@ public class PlayerSkeleton {
 	
 	//implement this function to have a working system
 	public int pickMove(StateEx s, int[][] legalMoves) {
-		
+		int maxScore = 0, bestOrient = 0, bestSlot = 0;
+
+		for (int i = 0; i < legalMoves.length; i++){
+				int testScore = testMove(legalMoves[i][ORIENT], legalMoves[i][SLOT]);
+				if (testScore > maxScore){
+					maxScore = testScore;
+					bestOrient = ORIENT;
+					bestSlot = SLOT;
+				}
+			}
+		}
 		return 0;
 	}
 	
