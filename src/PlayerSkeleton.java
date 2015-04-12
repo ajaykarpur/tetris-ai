@@ -14,14 +14,13 @@ public class PlayerSkeleton {
 		 * making the given move.
 		 */
 		public int[] getHeuristicVector() {
-			return new int[] {getAggregateHeight(), 
-							getCompleteLines(),
-							getHoles(),
-							getBumpiness()};
-		}
-		
-		private int getAggregateHeight() {
-			return 0;
+			
+			int[] bumpinessAndHeight = getBumpinessAndHeight();
+			
+			return new int[] {getCompleteLines(),
+							  getHoles(),
+							  bumpinessAndHeight[0],
+							  bumpinessAndHeight[1]};
 		}
 		
 		private int getCompleteLines() {
@@ -32,8 +31,16 @@ public class PlayerSkeleton {
 			return 0;
 		}
 		
-		private int getBumpiness() {
-			return 0;
+		private int[] getBumpinessAndHeight() {
+			int[] top = this.getTop();
+			int bumpiness = 0;
+			int aggregateHeight = top[0];
+			for (int i = 1; i < top.length; i ++)
+			{
+				bumpiness += Math.abs(top[i] - top[i-1]);
+				aggregateHeight += top[i];
+			}
+			return new int[] {bumpiness, aggregateHeight};
 		}
 		
 		
