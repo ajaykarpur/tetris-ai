@@ -127,6 +127,25 @@ public class PlayerSkeleton {
 		}
 		
 	}
+
+	//each indiviual is a instance of the game
+	private class Individual implements Comparable<Individual> {
+		//weights are in the order: Rows Cleared, Holes,bumpiness ,Height 
+		public float[] weights;
+		public float fitness;
+		private float EPSILON = 0.0001f;
+		private StateEx state;
+		
+		public Individual(boolean random) {
+			fitness = 0;
+			if(random) {
+				for(int i = 0 ; i < nfeatures ; i++) {
+					//In the actual project we should use this:
+					weights[i] = RANDOM.nextFloat();
+					
+				}
+			}
+		}
 	
 	//implement this function to have a working system
 	public int pickMove(StateEx s, int[][] legalMoves) {
