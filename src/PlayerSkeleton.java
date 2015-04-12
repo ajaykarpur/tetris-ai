@@ -139,7 +139,7 @@ public class PlayerSkeleton {
 		//weights are in the order: Rows Cleared, Holes,bumpiness ,Height 
 		public float[] features = new float[NUM_FEATURES];
 		public float fitness;
-		public StateEx state;
+		public StateEx state = new StateEx();
 		
 		private float EPSILON = 0.0001f;
 		
@@ -199,7 +199,13 @@ public class PlayerSkeleton {
 	
 	public static void main(String[] args) {
 		PlayerSkeleton p = new PlayerSkeleton();
-		StateEx s = p.new StateEx();
+		
+		if(args.length > 0 && args[0].equals("-g")) {
+			p.genetic(100, 20, 0.01f);
+			return;
+		}
+		
+		/*StateEx s = p.new StateEx();
 		
 		new TFrame(s);
 		
@@ -213,7 +219,7 @@ public class PlayerSkeleton {
 				e.printStackTrace();
 			}
 		}
-		System.out.println("You have completed "+s.getRowsCleared()+" rows.");
+		System.out.println("You have completed "+s.getRowsCleared()+" rows.");*/
 	}
 	
 	/* FITNESS */
