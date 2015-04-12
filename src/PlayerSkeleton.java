@@ -17,16 +17,12 @@ public class PlayerSkeleton {
 			
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
 			
-			return new int[] {getCompleteLines(),
+			return new int[] {this.getRowsCleared(),
 							  getHoles(),
 							  bumpinessAndHeight[0],
 							  bumpinessAndHeight[1]};
 		}
-		
-		private int getCompleteLines() {
-			return 0;
-		}
-		
+				
 		private int getHoles() {
 			return 0;
 		}
