@@ -1,5 +1,13 @@
+import java.util.Arrays;
+import java.util.PriorityQueue;
+import java.util.Random;
 
 public class PlayerSkeleton {
+	
+	private final static int NUM_FEATURES = 4;
+	private static Random RANDOM = new Random();
+	
+	private final static int NUM_GAMES_PER_GEN = 15;
 	
 	/**
 	 * Extended state class. Offers methods to
@@ -129,36 +137,64 @@ public class PlayerSkeleton {
 	//each indiviual is a instance of the game
 	private class Individual implements Comparable<Individual> {
 		//weights are in the order: Rows Cleared, Holes,bumpiness ,Height 
-		public float[] weights;
+		public float[] features = new float[NUM_FEATURES];
 		public float fitness;
+		public StateEx state;
+		
 		private float EPSILON = 0.0001f;
-		private StateEx state;
 		
 		public Individual(boolean random) {
 			fitness = 0;
 			if(random) {
-				for(int i = 0 ; i < nfeatures ; i++) {
+				for(int i = 0 ; i < NUM_FEATURES ; i++) {
 					//In the actual project we should use this:
-					weights[i] = RANDOM.nextFloat();
+					features[i] = RANDOM.nextFloat();
 					
 				}
 			}
 		}
-	
-	//implement this function to have a working system
-	public int pickMove(StateEx s, int[][] legalMoves) {
-		int maxScore = 0, bestOrient = 0, bestSlot = 0;
-
-		for (int i = 0; i < legalMoves.length; i++){
-				int testScore = testMove(legalMoves[i][ORIENT], legalMoves[i][SLOT]);
-				if (testScore > maxScore){
-					maxScore = testScore;
-					bestOrient = ORIENT;
-					bestSlot = SLOT;
-				}
-			}
+		
+		public int compareTo(Individual a) {
+			//"Natural ordering" means larger fitness first
+			if(Math.abs(fitness - a.fitness) < EPSILON)
+				return 0;
+			else if(fitness > a.fitness)
+				return -1;
+			return 1;
 		}
-		return 0;
+		
+		public String toString() {
+			return Arrays.toString(this.features);
+		}
+		
+		public void resetState() {
+			state = new StateEx();
+		}
+		
+		public int play() {
+			float maxScore;
+			int bestMove;
+			while(!state.hasLost()) {
+				int[][] legalMoves = state.legalMoves();
+				maxScore = Float.NEGATIVE_INFINITY;
+				bestMove = -1;
+				
+				for (int i = 0; i < legalMoves.length; i++){
+					float moveScore = this.state.testMove(legalMoves[i][State.ORIENT], 
+														legalMoves[i][State.SLOT], 
+														this.features);
+					if (moveScore > maxScore){
+						maxScore = moveScore;
+						bestMove = i;
+					}
+				}
+				
+				state.makeMove(legalMoves[bestMove]);
+			}
+			
+			return state.getRowsCleared();
+		}
+		
 	}
 	
 	public static void main(String[] args) {
@@ -168,7 +204,7 @@ public class PlayerSkeleton {
 		new TFrame(s);
 		
 		while(!s.hasLost()) {
-			s.makeMove(p.pickMove(s,s.legalMoves()));
+			//s.makeMove(p.pickMove(s,s.legalMoves()));
 			s.draw();
 			s.drawNext(0,0);
 			try {
@@ -179,5 +215,110 @@ public class PlayerSkeleton {
 		}
 		System.out.println("You have completed "+s.getRowsCleared()+" rows.");
 	}
+	
+	/* FITNESS */
+	private void fitness(Individual in) {
+		int totalFitness = 0;
+		for(int i = 0 ; i < NUM_GAMES_PER_GEN ; i++) {
+			totalFitness += in.play();
+			in.resetState();
+		}
+		
+		in.fitness = totalFitness;
+	}
+	
+	/* GENERIC GENETIC ALGORITHM STUFF DOWN HERE. */
+	
+	private Individual[] combine(Individual[] gen) {
+		//For each pair of individuals, randomly select features from
+		//either one or the other to assign to each new individual.
+		Individual[] newGen = new Individual[gen.length];
+		for(int i = 0 ; i < gen.length - 1 ; i += 2) {
+			Individual a = new Individual(false);
+			Individual b = new Individual(false);
+			
+			//Alternate method of breeding. Flip a coin on every feature to
+			//determine which child should inherit from whom. This might be
+			//better for the actual project?
+			/*for(int j = 0 ; j < gen[i].features.length ; j++) {
+				if(RANDOM.nextBoolean()) {
+					a.features[j] = gen[i].features[j];
+					b.features[j] = gen[i+1].features[j];
+				} else {
+					a.features[j] = gen[i+1].features[j];
+					b.features[j] = gen[i].features[j];
+				}
+			}*/
+			
+			int split = RANDOM.nextInt(gen[i].features.length);
+			for(int j = 0 ; j < split ; j++) {
+				a.features[j] = gen[i].features[j];
+				b.features[j] = gen[i+1].features[j];
+			}
+			for(int j = split ; j < gen[i].features.length ; j++) {
+				a.features[j] = gen[i+1].features[j];
+				b.features[j] = gen[i].features[j];
+			}
+			
+			newGen[i] = a;
+			newGen[i+1] = b;
+		}
+		return newGen;
+	}
+	
+	private void mutate(Individual[] gen, final float mutation) {
+		//Go through the features of each individual and mutate it according to the mutation rate
+		for(int i = 0 ; i < gen.length ; i++) {
+			for(int j = 0 ; j < gen[i].features.length ; j++) {
+				if(RANDOM.nextFloat() < mutation) {
+					//Again here for the purposes of the example I'm mutating by an integer value
+					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
+					int amt = 0;
+					while(amt == 0)
+						amt = (int) ((RANDOM.nextBoolean() ? 1 : -1) * 2 * RANDOM.nextFloat());
+					
+					gen[i].features[j] += amt;
+					if(gen[i].features[j] > 255)
+						gen[i].features[j] = 255;
+					else if(gen[i].features[j] < 0)
+						gen[i].features[j] = 0;
+				}
+			}
+		}
+	}
+	
+	private void genetic(final int gen_size, final int num_gens, final float mutation) {
+		Individual[] current_gen = new Individual[gen_size];
+		Individual[] better_half = new Individual[gen_size/2];
+		Individual best = null;
+		PriorityQueue<Individual> leaderboard = new PriorityQueue<Individual>(gen_size);
+		int k = 0;
+		//Create first generation
+		for(int i = 0 ; i < gen_size ; i++)
+			current_gen[i] = new Individual(true);
+		
+		//Here we could just run forever, or ensure that our fitness function
+		//never returns 1. Or stop after some amount of iterations.
+		while(k < num_gens) {
+			for(int i = 0 ; i < current_gen.length ; i++) {
+				fitness(current_gen[i]);
+				leaderboard.add(current_gen[i]);
+			}
+			
+			best = leaderboard.peek();
+			
+			for(int i = 0 ; i < current_gen.length / 2 ; i++)
+				better_half[i] = leaderboard.remove();
+			leaderboard.clear();
+			
+			current_gen = combine(better_half);
+			mutate(current_gen, mutation);
+			
+			System.out.println("Generation " + k + ", best individual: " 
+					+ best.toString() + " (fitness " + best.fitness + ")");
+			k++;
+		};
+	}
+	
 	
 }
