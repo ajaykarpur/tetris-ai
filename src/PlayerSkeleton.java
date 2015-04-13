@@ -3,8 +3,13 @@ import java.util.PriorityQueue;
 import java.util.Random;
 
 public class PlayerSkeleton {
-	
+	 
 	private final static int NUM_FEATURES = 4;
+	private final static int ROWS_CLEARED = 0;
+	private final static int HOLES = 1;
+	private final static int BUMPINESS = 2;
+	private final static int HEIGHT = 3;
+	
 	private static Random RANDOM = new Random();
 	
 	private final static int NUM_GAMES_PER_GEN = 15;
@@ -148,7 +153,13 @@ public class PlayerSkeleton {
 			if(random) {
 				for(int i = 0 ; i < NUM_FEATURES ; i++) {
 					//In the actual project we should use this:
-					features[i] = RANDOM.nextFloat();
+					if(i == ROWS_CLEARED){
+						features[i] = RANDOM.nextFloat();
+					}
+					else{
+						features[i] = (-1f)*RANDOM.nextFloat();
+					}
+					
 					
 				}
 			}
