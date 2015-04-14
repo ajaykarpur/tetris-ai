@@ -263,7 +263,7 @@ public class PlayerSkeleton {
 			//Alternate method of breeding. Flip a coin on every feature to
 			//determine which child should inherit from whom. This might be
 			//better for the actual project?
-			/*for(int j = 0 ; j < gen[i].features.length ; j++) {
+			for(int j = 0 ; j < gen[i].features.length ; j++) {
 				if(RANDOM.nextBoolean()) {
 					a.features[j] = gen[i].features[j];
 					b.features[j] = gen[i+1].features[j];
@@ -271,8 +271,8 @@ public class PlayerSkeleton {
 					a.features[j] = gen[i+1].features[j];
 					b.features[j] = gen[i].features[j];
 				}
-			}*/
-			
+			}
+			/*
 			int split = RANDOM.nextInt(gen[i].features.length);
 			for(int j = 0 ; j < split ; j++) {
 				a.features[j] = gen[i].features[j];
@@ -281,7 +281,7 @@ public class PlayerSkeleton {
 			for(int j = split ; j < gen[i].features.length ; j++) {
 				a.features[j] = gen[i+1].features[j];
 				b.features[j] = gen[i].features[j];
-			}
+			}*/
 			
 			newGen[i] = a;
 			newGen[i+1] = b;
@@ -298,7 +298,7 @@ public class PlayerSkeleton {
 					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
 					float amt = 0.f;
 					while(amt == 0.f)
-						amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.15f * RANDOM.nextFloat();
+						amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
 					
 					gen[i].features[j] += amt;
 					if(gen[i].features[j] > 1.f)
