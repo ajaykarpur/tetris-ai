@@ -64,6 +64,9 @@ public class PlayerSkeleton {
 			
 			//initialize heuristics
 			int rowsCleared = dryRunMove(this.nextPiece, orient, slot);
+			if(rowsCleared == -1) //If we lost the game, 
+				return Integer.MIN_VALUE;
+			
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
 			int[] heuristics = {rowsCleared,
 								getHoles(),
@@ -89,6 +92,9 @@ public class PlayerSkeleton {
 			for(int c = 1; c < State.getpWidth()[piece][orient];c++) {
 				height = Math.max(height,topCopy[slot+c]-State.getpBottom()[piece][orient][c]);
 			}
+			
+			if(height+State.getpHeight()[piece][orient] >= ROWS)
+				return -1;
 			
 			//for each column in the piece - fill in the appropriate blocks
 			for(int i = 0; i < State.getpWidth()[piece][orient]; i++)
@@ -290,15 +296,15 @@ public class PlayerSkeleton {
 				if(RANDOM.nextFloat() < mutation) {
 					//Again here for the purposes of the example I'm mutating by an integer value
 					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
-					int amt = 0;
-					while(amt == 0)
-						amt = (int) ((RANDOM.nextBoolean() ? 1 : -1) * 2 * RANDOM.nextFloat());
+					float amt = 0.f;
+					while(amt == 0.f)
+						amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.15f * RANDOM.nextFloat();
 					
 					gen[i].features[j] += amt;
-					if(gen[i].features[j] > 255)
-						gen[i].features[j] = 255;
-					else if(gen[i].features[j] < 0)
-						gen[i].features[j] = 0;
+					if(gen[i].features[j] > 1.f)
+						gen[i].features[j] = 1.f;
+					else if(gen[i].features[j] < -1.f)
+						gen[i].features[j] = -1.f;
 				}
 			}
 		}
