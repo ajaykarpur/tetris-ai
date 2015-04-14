@@ -1,4 +1,5 @@
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.PriorityQueue;
 import java.util.Random;
 
@@ -14,6 +15,14 @@ public class PlayerSkeleton {
 	
 	private final static int NUM_GAMES_PER_GEN = 15;
 	
+	private class Coord {
+		public int r, c;
+		public Coord(int _r, int _c) {
+			r = _r;
+			c = _c;
+		}
+	}
+	
 	/**
 	 * Extended state class. Offers methods to
 	 * test a move and compute the heuristics for
@@ -21,18 +30,27 @@ public class PlayerSkeleton {
 	 */
 	private class StateEx extends State {
 		
-		private int[][] fieldCopy;
+		//private int[][] fieldCopy;
 		private int[] topCopy;
-
+		private boolean[] fullRow;
+		private LinkedList<Coord> piecePosition = new LinkedList<Coord>();
 				
 		private int getHoles() {
+			int[][] field = getField();
 			int holes = 0;
 
 			//start looking for empty spaces below top of pile
 			for (int col = 0; col < this.topCopy.length; col++){
-				for (int row = this.topCopy[col]; row >= 0; row--){
+				int startRow = this.topCopy[col];
+				
+				while(startRow >= 0 && fullRow[startRow])
+					startRow--;
+				while(startRow >= 0 && field[startRow][col] == 0)
+					startRow--;
+				
+				for (int row = startRow; row >= 0; row--){
 					//if empty space encountered below top, it's a hole
-					if (this.fieldCopy[row][col] == 0)
+					if (field[row][col] == 0)
 						holes++;
 				}
 			}
@@ -52,19 +70,21 @@ public class PlayerSkeleton {
 		}
 		
 		private float testMove(int orient, int slot, float[] weights) {
-			//Copy data over to topCopy and fieldCopy
-			this.topCopy = new int[COLS];
-			this.fieldCopy = new int[ROWS][COLS];
-			System.arraycopy( this.getTop(), 0, this.topCopy, 0, COLS );
-			for(int i = 0;i<ROWS;i++){
-				System.arraycopy(this.getField()[i], 0, this.fieldCopy[i], 0, COLS);
-			}
-
+			this.topCopy = Arrays.copyOf(this.getTop(), COLS);
+			this.fullRow = new boolean[ROWS];
+			piecePosition.clear();
+			
 			float score = 0;
+			int piece = this.nextPiece;
 			
 			//initialize heuristics
-			int rowsCleared = dryRunMove(this.nextPiece, orient, slot);
-			if(rowsCleared == -1) //If we lost the game, 
+			int rowsCleared = dryRunMove(piece, orient, slot);
+			//Reset the field
+			int[][] field = getField();
+			for(Coord c: piecePosition)
+					field[c.r][c.c] = 0;
+			
+			if(rowsCleared == -1) //If we lost the game, return minimal value for this move.
 				return Integer.MIN_VALUE;
 			
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
@@ -86,6 +106,7 @@ public class PlayerSkeleton {
 		 * @return Number of rows cleared by the move.
 		 */
 		private int dryRunMove(int piece, int orient, int slot) {
+			int[][] field = getField();
 			//height if the first column makes contact
 			int height = topCopy[slot]-State.getpBottom()[piece][orient][0];
 			//for each column beyond the first in the piece
@@ -98,8 +119,10 @@ public class PlayerSkeleton {
 			
 			//for each column in the piece - fill in the appropriate blocks
 			for(int i = 0; i < State.getpWidth()[piece][orient]; i++)
-				for(int h = height+State.getpBottom()[piece][orient][i]; h < height+State.getpTop()[piece][orient][i]; h++)
-					fieldCopy[h][i+slot] = -1;
+				for(int h = height+State.getpBottom()[piece][orient][i]; h < height+State.getpTop()[piece][orient][i]; h++) {
+					field[h][i+slot] = -1;
+					piecePosition.add(new Coord(h, i+slot));
+				}
 			
 			//adjust top
 			for(int c = 0; c < State.getpWidth()[piece][orient]; c++) {
@@ -117,25 +140,21 @@ public class PlayerSkeleton {
 				//check all columns in the row
 				boolean full = true;
 				for(int c = 0; c < COLS; c++) {
-					if(fieldCopy[r][c] == 0) {
+					if(field[r][c] == 0) {
 						full = false;
 						break;
 					}
 				}
 				//if the row was full - remove it and slide above stuff down
 				if(full) {
+					fullRow[r] = true;
 					rowsCleared++;					
 					//for each column
-					for(int c = 0; c < COLS; c++) {
-
-						//slide down all bricks
-						for(int i = r; i < topCopy[c]; i++) {
-							fieldCopy[i][c] = fieldCopy[i+1][c];
-						}
+					/*for(int c = 0; c < COLS; c++) {
 						//lower the top
 						topCopy[c]--;
-						while(topCopy[c]>=1 && fieldCopy[topCopy[c]-1][c]==0)	topCopy[c]--;
-					}
+						while(topCopy[c]>=1 && field[topCopy[c]-1][c]==0)	topCopy[c]--;
+					}*/
 				}
 				
 			}
