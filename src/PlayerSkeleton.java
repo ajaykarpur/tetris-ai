@@ -43,10 +43,8 @@ public class PlayerSkeleton {
 			for (int col = 0; col < this.topCopy.length; col++){
 				int startRow = this.topCopy[col];
 				
-				while(startRow >= 0 && fullRow[startRow])
-					startRow--;
-				while(startRow >= 0 && field[startRow][col] == 0)
-					startRow--;
+				//while(startRow >= 0 && (fullRow[startRow] || field[startRow][col] == 0))
+				//	startRow--;
 				
 				for (int row = startRow; row >= 0; row--){
 					//if empty space encountered below top, it's a hole
@@ -82,6 +80,15 @@ public class PlayerSkeleton {
 			
 			if(rowsCleared == -1) //If we lost the game, return minimal value for this move.
 				return Integer.MIN_VALUE;
+			
+			for (int col = 0; col < this.topCopy.length; col++){
+				int startRow = this.topCopy[col];
+				
+				while(startRow >= 0 && (fullRow[startRow] || getField()[startRow][col] == 0))
+					startRow--;
+				
+				topCopy[col] = startRow;
+			}
 			
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
 			int[] heuristics = {rowsCleared,
@@ -188,6 +195,11 @@ public class PlayerSkeleton {
 					
 					
 				}
+			} else {
+				features[ROWS_CLEARED] = 0.760666f;
+				features[BUMPINESS] = -0.184483f;
+				features[HEIGHT] = -0.510066f;
+				features[HOLES] = -0.35663f;
 			}
 		}
 		
@@ -201,16 +213,31 @@ public class PlayerSkeleton {
 		}
 		
 		public String toString() {
-			return Arrays.toString(this.features);
+			return Arrays.toString(this.features) + " (fitness " + fitness + ")";
 		}
 		
 		public void resetState() {
 			state = new StateEx();
 		}
 		
+		public boolean a2deq(int[][] a, int[][] b) {
+			if(a.length != b.length) return false;
+			for(int i = 0; i < a.length ; i++) {
+				if(a[i].length != b[i].length) return false;
+				for(int j = 0 ; j < a[i].length ; j++) {
+					if(a[i][j] != b[i][j]) return false;
+				}
+			}
+			
+			return true;
+		}
+		
 		public int play() {
+			new TFrame(state);
+			
 			float maxScore;
-			int bestMove;
+			int bestMove;			
+			
 			while(!state.hasLost()) {
 				int[][] legalMoves = state.legalMoves();
 				maxScore = Float.NEGATIVE_INFINITY;
@@ -220,6 +247,7 @@ public class PlayerSkeleton {
 					float moveScore = this.state.testMove(legalMoves[i][State.ORIENT], 
 														legalMoves[i][State.SLOT], 
 														this.features);
+					
 					if (moveScore > maxScore){
 						maxScore = moveScore;
 						bestMove = i;
@@ -227,6 +255,14 @@ public class PlayerSkeleton {
 				}
 				
 				state.makeMove(legalMoves[bestMove]);
+				
+				state.draw();
+				state.drawNext(0,0);
+				try {
+					Thread.sleep(300);
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
 			}
 			
 			return state.getRowsCleared();
@@ -238,7 +274,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(100, 20, 0.01f);
+			p.genetic(1, 20, 0.01f);
 			return;
 		}
 		
@@ -338,7 +374,7 @@ public class PlayerSkeleton {
 		int k = 0;
 		//Create first generation
 		for(int i = 0 ; i < gen_size ; i++)
-			current_gen[i] = new Individual(true);
+			current_gen[i] = new Individual(false);
 		
 		//Here we could just run forever, or ensure that our fitness function
 		//never returns 1. Or stop after some amount of iterations.
@@ -350,15 +386,19 @@ public class PlayerSkeleton {
 			
 			best = leaderboard.peek();
 			
-			for(int i = 0 ; i < current_gen.length / 2 ; i++)
-				better_half[i] = leaderboard.remove();
+			System.out.println("Generation " + k);
+			for(int i = 0 ; i < current_gen.length / 2 ; i++) {
+				Individual in = leaderboard.remove();
+				better_half[i] = in;
+				System.out.println(in.toString());
+			}
 			leaderboard.clear();
 			
 			current_gen = combine(better_half);
 			mutate(current_gen, mutation);
 			
-			System.out.println("Generation " + k + ", best individual: " 
-					+ best.toString() + " (fitness " + best.fitness + ")");
+			//System.out.println("Generation " + k + ", best individual: " 
+			//		+ best.toString());
 			k++;
 		};
 	}
