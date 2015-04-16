@@ -79,10 +79,6 @@ public class PlayerSkeleton {
 			
 			//initialize heuristics
 			int rowsCleared = dryRunMove(piece, orient, slot);
-			//Reset the field
-			int[][] field = getField();
-			for(Coord c: piecePosition)
-					field[c.r][c.c] = 0;
 			
 			if(rowsCleared == -1) //If we lost the game, return minimal value for this move.
 				return Integer.MIN_VALUE;
@@ -96,6 +92,11 @@ public class PlayerSkeleton {
 			//score/evaluation function is dot product of heuristics[4] and weights[4]
 			for (int i = 0; i < heuristics.length; i++)
 				score += heuristics[i] * weights[i];
+			
+			//Reset the field
+			int[][] field = getField();
+			for(Coord c: piecePosition)
+					field[c.r][c.c] = 0;
 			
 			return score;
 			
