@@ -34,6 +34,7 @@ public class PlayerSkeleton {
 		private int[] topCopy;
 		private boolean[] fullRow;
 		private LinkedList<Coord> piecePosition = new LinkedList<Coord>();
+		int[] latestHeuristics = new int[4];
 				
 		private int getHoles() {
 			int[][] field = getField();
@@ -96,6 +97,8 @@ public class PlayerSkeleton {
 								bumpinessAndHeight[0],
 								bumpinessAndHeight[1] };
 
+			System.arraycopy(heuristics, 0, latestHeuristics, 0, latestHeuristics.length);
+			
 			//score/evaluation function is dot product of heuristics[4] and weights[4]
 			for (int i = 0; i < heuristics.length; i++)
 				score += heuristics[i] * weights[i];
@@ -236,7 +239,8 @@ public class PlayerSkeleton {
 			new TFrame(state);
 			
 			float maxScore;
-			int bestMove;			
+			int bestMove;
+			int[] bestHeuristics = new int[4];
 			
 			while(!state.hasLost()) {
 				int[][] legalMoves = state.legalMoves();
@@ -251,11 +255,12 @@ public class PlayerSkeleton {
 					if (moveScore > maxScore){
 						maxScore = moveScore;
 						bestMove = i;
+						System.arraycopy(state.latestHeuristics, 0, bestHeuristics, 0, 4);
 					}
 				}
 				
 				state.makeMove(legalMoves[bestMove]);
-				
+				System.out.println(Arrays.toString(state.latestHeuristics));
 				state.draw();
 				state.drawNext(0,0);
 				try {
