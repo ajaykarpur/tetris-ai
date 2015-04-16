@@ -31,7 +31,7 @@ public class PlayerSkeleton {
 	private class StateEx extends State {
 		
 		//private int[][] fieldCopy;
-		private int[] topCopy;
+		int[] topCopy;
 		private boolean[] fullRow;
 		private LinkedList<Coord> piecePosition = new LinkedList<Coord>();
 		int[] latestHeuristics = new int[4];
@@ -39,17 +39,13 @@ public class PlayerSkeleton {
 		private int getHoles() {
 			int[][] field = getField();
 			int holes = 0;
-
-			//start looking for empty spaces below top of pile
-			for (int col = 0; col < this.topCopy.length; col++){
-				int startRow = this.topCopy[col];
-				
-				//while(startRow >= 0 && (fullRow[startRow] || field[startRow][col] == 0))
-				//	startRow--;
-				
-				for (int row = startRow; row >= 0; row--){
-					//if empty space encountered below top, it's a hole
-					if (field[row][col] == 0)
+			
+			for (int col = 0; col < State.COLS; col++){
+				boolean countHoles = false;
+				for(int row = State.ROWS - 1 ; row >= 0 ; row--) {
+					if(!countHoles && field[row][col] != 0 && !fullRow[row])
+						countHoles = true;
+					else if(countHoles && field[row][col] == 0)
 						holes++;
 				}
 			}
@@ -82,14 +78,25 @@ public class PlayerSkeleton {
 			if(rowsCleared == -1) //If we lost the game, return minimal value for this move.
 				return Integer.MIN_VALUE;
 			
-			for (int col = 0; col < this.topCopy.length; col++){
-				int startRow = this.topCopy[col];
-				
-				while(startRow >= 0 && (fullRow[startRow] || getField()[startRow][col] == 0))
-					startRow--;
-				
-				topCopy[col] = startRow;
-			}
+//			for (int col = 0; col < this.topCopy.length; col++){
+//				int startRow = this.topCopy[col];
+//				boolean getDown = false;
+//				while(startRow > 0 && (fullRow[startRow] || getField()[startRow][col] == 0)) {
+//					startRow--;
+//					getDown = true;
+//				}
+//				
+//				if(getDown) startRow++;
+//				
+//				topCopy[col] = startRow;
+//			}
+//			
+//			for (int col = 0; col < this.topCopy.length; col++){
+//				for (int row = this.topCopy[col] ; row > 0 ; row--) {
+//					if(fullRow[row])
+//						this.topCopy[col]--;
+//				}
+//			}
 			
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
 			int[] heuristics = {rowsCleared,
@@ -161,11 +168,11 @@ public class PlayerSkeleton {
 					fullRow[r] = true;
 					rowsCleared++;					
 					//for each column
-					/*for(int c = 0; c < COLS; c++) {
+					for(int c = 0; c < COLS; c++) {
 						//lower the top
 						topCopy[c]--;
 						while(topCopy[c]>=1 && field[topCopy[c]-1][c]==0)	topCopy[c]--;
-					}*/
+					}
 				}
 				
 			}
@@ -235,12 +242,21 @@ public class PlayerSkeleton {
 			return true;
 		}
 		
+		public boolean a1eq(int[] a, int b[]) {
+			if(a.length != b.length)
+				return false;
+			for(int i = 0 ; i < a.length ; i++) {
+				if (a[i] != b[i]) return false;
+			}
+			return true;
+		}
+		
 		public int play() {
-			new TFrame(state);
 			
 			float maxScore;
 			int bestMove;
 			int[] bestHeuristics = new int[4];
+			int[] bestTop = new int[State.COLS];
 			
 			while(!state.hasLost()) {
 				int[][] legalMoves = state.legalMoves();
@@ -256,18 +272,11 @@ public class PlayerSkeleton {
 						maxScore = moveScore;
 						bestMove = i;
 						System.arraycopy(state.latestHeuristics, 0, bestHeuristics, 0, 4);
+						System.arraycopy(state.topCopy, 0, bestTop, 0, State.COLS);
 					}
 				}
-				
+
 				state.makeMove(legalMoves[bestMove]);
-				System.out.println(Arrays.toString(state.latestHeuristics));
-				state.draw();
-				state.drawNext(0,0);
-				try {
-					Thread.sleep(300);
-				} catch (InterruptedException e) {
-					e.printStackTrace();
-				}
 			}
 			
 			return state.getRowsCleared();
@@ -279,7 +288,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(1, 20, 0.01f);
+			p.genetic(2, 20, 0.01f);
 			return;
 		}
 		
@@ -390,20 +399,19 @@ public class PlayerSkeleton {
 			}
 			
 			best = leaderboard.peek();
+			System.out.println("Generation " + k + ", best individual: " 
+					+ best.toString());
 			
-			System.out.println("Generation " + k);
 			for(int i = 0 ; i < current_gen.length / 2 ; i++) {
 				Individual in = leaderboard.remove();
 				better_half[i] = in;
-				System.out.println(in.toString());
+				//System.out.println(in.toString());
 			}
 			leaderboard.clear();
 			
 			current_gen = combine(better_half);
 			mutate(current_gen, mutation);
 			
-			//System.out.println("Generation " + k + ", best individual: " 
-			//		+ best.toString());
 			k++;
 		};
 	}
