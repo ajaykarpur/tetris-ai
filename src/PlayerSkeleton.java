@@ -256,6 +256,7 @@ public class PlayerSkeleton {
 		
 		/**
 		 * Have this individual play one game, using on its features.
+		 * @param withFrame Whether the game UI should be visible.
 		 * @return The number of rows cleared this game.
 		 */
 		public int play(boolean withFrame) {
@@ -306,7 +307,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(4, 20, 0.0f);
+			p.genetic(100, 20, 0.0f, 0.25f);
 			return;
 		}
 		
@@ -334,29 +335,34 @@ public class PlayerSkeleton {
 	
 	/* Take the given parent individuals and generate a set
 	 * of new individuals that inherit their features
-	 * from the parents. */
-	private Individual[] combine(Individual[] gen) {
+	 * from the parents. gen_size individuals are generated */
+	private Individual[] combine(Individual[] top, final int gen_size) {
 		/* For each pair of individuals, randomly select features from
 		 * either one or the other to assign to each new individual. */
-		Individual[] newGen = new Individual[gen.length];
-		for(int i = 0 ; i < gen.length - 1 ; i += 2) {
-			Individual a = new Individual(false);
-			Individual b = new Individual(false);
+		Individual[] newGen = new Individual[gen_size];
+		for(int i = 0 ; i < gen_size - 1 ; i += 2) {
+			Individual childA = new Individual(false);
+			Individual childB = new Individual(false);
+			
+			int parentA = RANDOM.nextInt(top.length);
+			int parentB = RANDOM.nextInt(top.length);
+			while(parentB == parentA) //Ensure we don't have the same parents 
+				parentB = RANDOM.nextInt(top.length);
 			
 			/* Flip a coin on every feature to determine which 
 			 * child should inherit from whom. */
-			for(int j = 0 ; j < gen[i].features.length ; j++) {
+			for(int j = 0 ; j < NUM_FEATURES ; j++) {
 				if(RANDOM.nextBoolean()) {
-					a.features[j] = gen[i].features[j];
-					b.features[j] = gen[i+1].features[j];
+					childA.features[j] = top[parentA].features[j];
+					childB.features[j] = top[parentB].features[j];
 				} else {
-					a.features[j] = gen[i+1].features[j];
-					b.features[j] = gen[i].features[j];
+					childA.features[j] = top[parentB].features[j];
+					childB.features[j] = top[parentA].features[j];
 				}
 			}
 
-			newGen[i] = a;
-			newGen[i+1] = b;
+			newGen[i] = childA;
+			newGen[i+1] = childB;
 		}
 		return newGen;
 	}
@@ -402,17 +408,21 @@ public class PlayerSkeleton {
 	 * individual is computed. Then, the best individuals are selected and bred to
 	 * create new individuals. These new individuals have a small chance of mutating.
 	 */
-	private void genetic(final int gen_size, final int num_gens, final float mutation) {
+	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism) {
+		final int num_top = (int) (gen_size * elitism);
+		
 		Individual[] current_gen = new Individual[gen_size];
-		Individual[] better_half = new Individual[gen_size/2];
+		Individual[] elite = new Individual[num_top];
 		Individual best = null;
 		PriorityQueue<Individual> leaderboard = new PriorityQueue<Individual>(gen_size);
 		int k = 0;
+		
 		//Create first generation
 		for(int i = 0 ; i < gen_size ; i++)
-			current_gen[i] = new Individual(false);
+			current_gen[i] = new Individual(true);
 		
 		while(k < num_gens) {
+			System.out.print("Generation " + k + "... ");
 			for(int i = 0 ; i < current_gen.length ; i++) {
 				fitness(current_gen[i]);
 				/* With natural ordering, individuals with high fitness will be at
@@ -421,16 +431,16 @@ public class PlayerSkeleton {
 			}
 			
 			best = leaderboard.peek();
-			System.out.println("Generation " + k + ", best individual: " 
+			System.out.println("best individual: " 
 					+ best.toString());
 			
-			for(int i = 0 ; i < current_gen.length / 2 ; i++) {
+			for(int i = 0 ; i < num_top ; i++) {
 				Individual in = leaderboard.remove();
-				better_half[i] = in;
+				elite[i] = in;
 			}
 			leaderboard.clear();
 			
-			current_gen = combine(better_half);
+			current_gen = combine(elite, gen_size);
 			mutate(current_gen, mutation);
 			
 			k++;
