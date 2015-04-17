@@ -307,7 +307,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(500, 20, 0.01f, 0.1f);
+			p.genetic(500, 20, 0.05f, 0.1f);
 			return;
 		}
 		
@@ -374,7 +374,7 @@ public class PlayerSkeleton {
 				int selected = RANDOM.nextInt(NUM_FEATURES);
 				float amt = 0.f;
 				while(amt == 0.f)
-					amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.25f * RANDOM.nextFloat();
+					amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.1f * RANDOM.nextFloat();
 				
 				gen[i].features[selected] += amt;
 				if(gen[i].features[selected] > 1.f)
