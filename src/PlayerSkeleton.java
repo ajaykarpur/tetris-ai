@@ -10,7 +10,7 @@ public class PlayerSkeleton {
 	private final static int ROWS_CLEARED = 0;
 	private final static int HOLES = 1;
 	private final static int BUMPINESS = 2;
-	private final static int HEIGHT = 3;
+	private final static int AGGREGATE_HEIGHT = 3;
 	
 	private static Random RANDOM = new Random();
 	
@@ -40,7 +40,7 @@ public class PlayerSkeleton {
 		private boolean[] fullRow;
 		//Coordinates of the piece that was just played.
 		private LinkedList<Coord> piecePosition = new LinkedList<Coord>();
-		int[] latestHeuristics = new int[4];
+		int[] latestHeuristics = new int[NUM_FEATURES];
 		
 		//Get the number of holes (empty tiles with at least one full tile above
 		//them in the same column) for the current board.
@@ -71,8 +71,7 @@ public class PlayerSkeleton {
 		private int[] getBumpinessAndHeight() {			
 			int bumpiness = 0;
 			int aggregateHeight = topCopy[0];
-			for (int i = 1; i < topCopy.length; i ++)
-			{
+			for (int i = 1; i < topCopy.length; i ++) {
 				bumpiness += Math.abs(topCopy[i] - topCopy[i-1]);
 				aggregateHeight += topCopy[i];
 			}
@@ -97,11 +96,11 @@ public class PlayerSkeleton {
 			latestHeuristics[ROWS_CLEARED] = rowsCleared;
 			latestHeuristics[HOLES] = getHoles();
 			latestHeuristics[BUMPINESS] = bumpinessAndHeight[0];
-			latestHeuristics[HEIGHT] = bumpinessAndHeight[1];
+			latestHeuristics[AGGREGATE_HEIGHT] = bumpinessAndHeight[1];
 			
-			//score/evaluation function is dot product of heuristics[4] and weights[4]
+			//score/evaluation function is dot product of heuristics and weights
 			float score = 0;
-			for (int i = 0; i < latestHeuristics.length; i++)
+			for (int i = 0; i < NUM_FEATURES; i++)
 				score += latestHeuristics[i] * weights[i];
 			
 			//Reset the field
@@ -220,10 +219,12 @@ public class PlayerSkeleton {
 					
 				}
 			} else {
-				features[ROWS_CLEARED] = 0.760666f;
-				features[BUMPINESS] = -0.184483f;
-				features[HEIGHT] = -0.510066f;
-				features[HOLES] = -0.35663f;
+				
+				features[ROWS_CLEARED] = 0.6f;
+				features[BUMPINESS] = -0.2f;
+				features[AGGREGATE_HEIGHT] = -0.7f;
+				features[HOLES] = -0.5f;
+				
 			}
 		}
 		
@@ -257,10 +258,13 @@ public class PlayerSkeleton {
 		 * Have this individual play one game, using on its features.
 		 * @return The number of rows cleared this game.
 		 */
-		public int play() {
+		public int play(boolean withFrame) {
 			
 			float maxScore;
 			int bestMove;
+			
+			if(withFrame)
+				new TFrame(state);
 			
 			while(!state.hasLost()) {
 				int[][] legalMoves = state.legalMoves();
@@ -281,6 +285,16 @@ public class PlayerSkeleton {
 				}
 
 				state.makeMove(legalMoves[bestMove]);
+				
+				if(withFrame) {
+					state.draw();
+					state.drawNext(0,0);
+					try {
+						Thread.sleep(300);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
 			}
 			
 			return state.getRowsCleared();
@@ -292,25 +306,13 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(1000, 20, 0.01f);
+			p.genetic(4, 20, 0.0f);
 			return;
 		}
 		
-		/*StateEx s = p.new StateEx();
-		
-		new TFrame(s);
-		
-		while(!s.hasLost()) {
-			//s.makeMove(p.pickMove(s,s.legalMoves()));
-			s.draw();
-			s.drawNext(0,0);
-			try {
-				Thread.sleep(300);
-			} catch (InterruptedException e) {
-				e.printStackTrace();
-			}
-		}
-		System.out.println("You have completed "+s.getRowsCleared()+" rows.");*/
+		Individual in = p.new Individual(false);
+		int score = in.play(true);
+		System.out.println("You have completed "+score+" rows.");
 	}
 	
 	/* Compute the fitness of this individual.
@@ -319,7 +321,7 @@ public class PlayerSkeleton {
 	private void fitness(Individual in) {
 		int totalFitness = 0;
 		for(int i = 0 ; i < NUM_GAMES_PER_GEN ; i++) {
-			totalFitness += in.play();
+			totalFitness += in.play(false);
 			in.resetState();
 		}
 		
@@ -367,7 +369,7 @@ public class PlayerSkeleton {
 				while(amt == 0.f)
 					amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
 				
-				int selected = RANDOM.nextInt(4);
+				int selected = RANDOM.nextInt(NUM_FEATURES);
 				
 				gen[i].features[selected] = (RANDOM.nextBoolean() ? 1.f : -1.f) * RANDOM.nextFloat();
 				if(gen[i].features[selected] > 1.f)
@@ -408,7 +410,7 @@ public class PlayerSkeleton {
 		int k = 0;
 		//Create first generation
 		for(int i = 0 ; i < gen_size ; i++)
-			current_gen[i] = new Individual(true);
+			current_gen[i] = new Individual(false);
 		
 		while(k < num_gens) {
 			for(int i = 0 ; i < current_gen.length ; i++) {
