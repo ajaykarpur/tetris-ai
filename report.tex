@@ -1,0 +1,66 @@
+\documentclass[10pt]{report}
+
+\usepackage{fullpage}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+
+\title{Dead Man's Tetris (feat. Captain Murphy and Snoop Dogg)}
+
+\begin{document}
+\maketitle
+
+\section{Introduction}
+We considered three different approaches for this assignment: neural networks, particle swarm and genetic algorithms. We chose to implement genetic algorithms because we felt that it would be easier to implement and to parallelize (i.e. having multiple cores play the game and learn it at the same time). The neural networks approach seemed promising, but it is a supervised learning method and we did not find enough training data that we could have used. We considered using video data of record Tetris games, using Amazon’s Mechanical Turk service to annotate the games. However, we decided that this would take a long time and would be impractical (for example, we would have to review the annotations ourselves).
+
+For scaling, we had planned to implement multithreading for use on our four-core laptops or on a 32-core EC2 instance on AWS. However, we didn’t do this because we didn’t manage to make our player learn well enough.
+
+\section{Heuristics and Evaluation Function}
+We decided that it would be best to have a low number of heuristics, for two reasons. First, it is easy to reason about a few heuristics and to compute them by hand for testing reasons. Second, having fewer heuristics lowers the memory footprint and the computation time of fitness values, which is important in the context of scaling the algorithm to large numbers of Tetris games.
+
+Heuristics are evaluated by qualities of a board state after a move to be considered is performed. The most important indicator of a high performing agent is one that produces the highest score before losing, or highest number of cleared rows (without multipliers), which is the heuristic we want maximized. Other negative qualities of a board state were holes - empty squares in the board that have filled squares in the same column above them - , sum of the heights of the columns, and bumpiness - the total absolute differences in height between adjacent columns. These were anticipatory qualities that would increase the chance of a lost game, so it was necessary to quantify them immediately. The dot product of an array of the heuristics and an array of weights, floats between -1 and 1, make up the evaluation function which the agent uses to select which legal move is best to make. A learning method must be employed to determine which set of weights is optimal to providing an agent with the highest performance, the highest number of rows cleared.
+
+\section{Learning Method}
+As mentioned above we implemented a learning algorithm. We decided to use the genetic algorithm to mutate and improve an initial set of weights. A population is represented by individuals who play a set of games using its randomly initial set of weights. Based on its weights it assesses each move and makes the move with the best result. Every time the individual clears a row it adds a point to its score. 
+
+Once all of the individuals have played a specified number of games we order them by score and choose the top scoring half to evolve to the next generation. The process of evolution was done by crossover and then a random mutation. The crossover involved creating two individuals whose weights are taken randomly from either the best or second best scoring individual. This is repeated for all of the individuals who scored in the top half, with each individual creating two new individuals. 
+
+The new generation is then put through a mutation process. Here we randomly choose a percentage of individuals to mutate based on a mutation rate. The chosen individuals then have their features increased or decreased by a random amount. The function of the mutation rate is to avoid getting stuck in a local maxima. Although the crossover function serves as a good process of evolution it runs the risk of selecting the same best weights continuously. After enough generations the mutation function should edit these weights to produce a better score and the crossover will favour these new individuals.
+
+This learning method is continued until the scores produced from generations converge to an optimum set of weights for the given heuristics.
+
+\subsection{Genetic algorithm parameters}
+-Z population size
+-X mutation rate
+-Y games each individual plays per generation
+
+To speed up the learning process, the board height was reduced from 21 rows to 11 with the same width, anticipating a drop in fitness function while maintaining a large enough board to mimic performance on an actual board size. Further considerations to speed up the learning process are discussed in scaling considerations.
+
+\section{Experimental Results}
+We experimented with chosen algorithm by varying all the parameters that affect the evolution of generations. These were the heuristics chosen, the mutation rate and process, the crossover process, population size and number of games played per individual. Unfortunately the results showed no learning progress.
+
+\section{Observations and Analysis}
+We observed a fitness that remained roughly the same for each generation. This indicated that our algorithm was not learning.
+
+\section{Scaling considerations}
+The following are ideas that we considered to ensure that our system would be able to scale to large amounts of tetris games. Unfortunately, we did not implement any of these because, as explained before, we were unable to make our agent actually learn. However, we have a fairly precise idea of how we would go about implementing them, which is detailed below.
+
+\subsection{Learning cessation}
+One important part when learning a problem is knowing when no more progress is made and deciding to quit learning. This is a problem that has been studied in particular with neural networks. In (cite the thing), Shultz et al. introduce two parameters to control learning cessation: threshold and patience. Threshold specifies what is considered progress from one generation / learning cycle to the next, in terms of absolute difference between scores. Patience indicates how many consecutive generations without progress we are willing to tolerate before stopping the algorithm. In our case, we would measure threshold against the best individual of each generation. As long as the best fitness would vary by a value of at least threshold from one generation to the next, we would consider this generation to have progressed. After patience generations without progress, we declare that the algorithm has stalled and stop it. This is useful when scaling as it can prevent us from doing unproductive work (i.e. running generations even though no improvement occurs). Hence, we can potentially save a lot of time when learning without compromising the quality of our best individuals.
+
+\subsection{Parallelism}
+Genetics algorithms have one part that can easily be parallelized, which also happens to be the most expensive in our case: calculating the fitness values for each individual. As detailed before, each individual of a generation plays 15 games, and its fitness is the sum of the scores for those games. Clearly, every fitness computation may run in parallel. We can thus start a number of worker threads and have each of them take one individual, compute its fitness and repeat the process until all individuals have had their fitness computed. Since every generation typically contains at least tens of individuals, we can expect large speedups in this part of the algorithm.
+\textit{TODO measure how long the fitness computing part takes and present some figure of how much speedup we could gain (Amdahl’s law fuck yeah!)}
+
+\subsection{Variable mutation rate}
+We came up with the novel idea of modulating the mutation rate based on how quickly the algorithm is learning. If the fitness has not changed significantly for several continuous generations (flatlining), we planned to increase the mutation rate. If we notice that the fitness is oscillating or otherwise behaving in a volatile manner, we planned to decrease the mutation rate.
+
+\section{Appendix: Code organization and documentation}
+...
+
+\section{References}
+
+https://codemyroad.wordpress.com/2013/04/14/tetris-ai-the-near-perfect-player/
+
+http://mindmodeling.org/cogsci2013/papers/0183/paper0183.pdf
+\end{document}
