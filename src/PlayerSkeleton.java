@@ -307,7 +307,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(100, 20, 0.0f, 0.25f);
+			p.genetic(500, 20, 0.01f, 0.1f);
 			return;
 		}
 		
@@ -371,35 +371,17 @@ public class PlayerSkeleton {
 		//Go through the features of each individual and mutate it according to the mutation rate
 		for(int i = 0 ; i < gen.length ; i++) {
 			if(RANDOM.nextFloat() < mutation) {
+				int selected = RANDOM.nextInt(NUM_FEATURES);
 				float amt = 0.f;
 				while(amt == 0.f)
-					amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
+					amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.25f * RANDOM.nextFloat();
 				
-				int selected = RANDOM.nextInt(NUM_FEATURES);
-				
-				gen[i].features[selected] = (RANDOM.nextBoolean() ? 1.f : -1.f) * RANDOM.nextFloat();
+				gen[i].features[selected] += amt;
 				if(gen[i].features[selected] > 1.f)
 					gen[i].features[selected] = 1.f;
 				else if(gen[i].features[selected] < -1.f)
 					gen[i].features[selected] = -1.f;
 			}
-
-//			for(int j = 0 ; j < gen[i].features.length ; j++) {
-//				if(RANDOM.nextFloat() < mutation) {
-//					System.out.println("MUTATtPOOP");
-//					//Again here for the purposes of the example I'm mutating by an integer value
-//					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
-//					float amt = 0.f;
-//					while(amt == 0.f)
-//						amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
-//					
-//					gen[i].features[j] += amt;
-//					if(gen[i].features[j] > 1.f)
-//						gen[i].features[j] = 1.f;
-//					else if(gen[i].features[j] < -1.f)
-//						gen[i].features[j] = -1.f;
-//				}
-//			}
 		}
 	}
 	
