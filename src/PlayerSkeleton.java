@@ -292,7 +292,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(2, 20, 0.01f);
+			p.genetic(1000, 20, 0.01f);
 			return;
 		}
 		
@@ -362,21 +362,36 @@ public class PlayerSkeleton {
 	private void mutate(Individual[] gen, final float mutation) {
 		//Go through the features of each individual and mutate it according to the mutation rate
 		for(int i = 0 ; i < gen.length ; i++) {
-			for(int j = 0 ; j < gen[i].features.length ; j++) {
-				if(RANDOM.nextFloat() < mutation) {
-					//Again here for the purposes of the example I'm mutating by an integer value
-					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
-					float amt = 0.f;
-					while(amt == 0.f)
-						amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
-					
-					gen[i].features[j] += amt;
-					if(gen[i].features[j] > 1.f)
-						gen[i].features[j] = 1.f;
-					else if(gen[i].features[j] < -1.f)
-						gen[i].features[j] = -1.f;
-				}
+			if(RANDOM.nextFloat() < mutation) {
+				float amt = 0.f;
+				while(amt == 0.f)
+					amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
+				
+				int selected = RANDOM.nextInt(4);
+				
+				gen[i].features[selected] = (RANDOM.nextBoolean() ? 1.f : -1.f) * RANDOM.nextFloat();
+				if(gen[i].features[selected] > 1.f)
+					gen[i].features[selected] = 1.f;
+				else if(gen[i].features[selected] < -1.f)
+					gen[i].features[selected] = -1.f;
 			}
+
+//			for(int j = 0 ; j < gen[i].features.length ; j++) {
+//				if(RANDOM.nextFloat() < mutation) {
+//					System.out.println("MUTATtPOOP");
+//					//Again here for the purposes of the example I'm mutating by an integer value
+//					//Change this by a random float between 0 and 1 (maybe with a factor of .5, .25?)
+//					float amt = 0.f;
+//					while(amt == 0.f)
+//						amt = (RANDOM.nextBoolean() ? 1.f : -1.f) * 0.005f * RANDOM.nextFloat();
+//					
+//					gen[i].features[j] += amt;
+//					if(gen[i].features[j] > 1.f)
+//						gen[i].features[j] = 1.f;
+//					else if(gen[i].features[j] < -1.f)
+//						gen[i].features[j] = -1.f;
+//				}
+//			}
 		}
 	}
 	
@@ -393,7 +408,7 @@ public class PlayerSkeleton {
 		int k = 0;
 		//Create first generation
 		for(int i = 0 ; i < gen_size ; i++)
-			current_gen[i] = new Individual(false);
+			current_gen[i] = new Individual(true);
 		
 		while(k < num_gens) {
 			for(int i = 0 ; i < current_gen.length ; i++) {
