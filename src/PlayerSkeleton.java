@@ -5,6 +5,7 @@ import java.util.Random;
 
 public class PlayerSkeleton {
 	 
+	/* Number of features and feature indices in the vector. */
 	private final static int NUM_FEATURES = 4;
 	private final static int ROWS_CLEARED = 0;
 	private final static int HOLES = 1;
@@ -13,8 +14,12 @@ public class PlayerSkeleton {
 	
 	private static Random RANDOM = new Random();
 	
+	/* Each individual plays this number of games per generations. */
 	private final static int NUM_GAMES_PER_GEN = 15;
 	
+	/**
+	 * A pair of integers. Java does not provide a generic pair class.
+	 */
 	private class Coord {
 		public int r, c;
 		public Coord(int _r, int _c) {
@@ -24,22 +29,27 @@ public class PlayerSkeleton {
 	}
 	
 	/**
-	 * Extended state class. Offers methods to
-	 * test a move and compute the heuristics for
-	 * the given state.
+	 * Extended state class. Provides methods to test a move without
+	 * actually making it, and computing heuristic values.
 	 */
 	private class StateEx extends State {
-		
-		//private int[][] fieldCopy;
+		//Copy of the "top" array from the super-class
+		//This is so that we don't have to modify the original version.
 		int[] topCopy;
+		//Whether a given row is full or not.
 		private boolean[] fullRow;
+		//Coordinates of the piece that was just played.
 		private LinkedList<Coord> piecePosition = new LinkedList<Coord>();
 		int[] latestHeuristics = new int[4];
-				
+		
+		//Get the number of holes (empty tiles with at least one full tile above
+		//them in the same column) for the current board.
 		private int getHoles() {
 			int[][] field = getField();
 			int holes = 0;
 			
+			/* From the top, go down until we reach a non-empty, non-full-row tile.
+			 * Then, every empty tile is a hole. */
 			for (int col = 0; col < State.COLS; col++){
 				boolean countHoles = false;
 				for(int row = State.ROWS - 1 ; row >= 0 ; row--) {
@@ -53,6 +63,11 @@ public class PlayerSkeleton {
 			return holes;
 		}
 		
+		/* Obtain the bumpiness (sum of differences between consecutive columns)
+		 * and aggregate height (sum of heights of all columns) of the current board.
+		 * Return a two-element array. First element is the bumpiness, second element
+		 * is the aggregateHeight.
+		 */
 		private int[] getBumpinessAndHeight() {			
 			int bumpiness = 0;
 			int aggregateHeight = topCopy[0];
@@ -64,51 +79,30 @@ public class PlayerSkeleton {
 			return new int[] {bumpiness, aggregateHeight};
 		}
 		
+		/* Test the given move against the current board. Compute the
+		 * score of the resulting move with the given weights for each
+		 * heuristic. The state itself is not modified. */
 		private float testMove(int orient, int slot, float[] weights) {
 			this.topCopy = Arrays.copyOf(this.getTop(), COLS);
 			this.fullRow = new boolean[ROWS];
 			piecePosition.clear();
 			
-			float score = 0;
 			int piece = this.nextPiece;
-			
-			//initialize heuristics
 			int rowsCleared = dryRunMove(piece, orient, slot);
 			
 			if(rowsCleared == -1) //If we lost the game, return minimal value for this move.
 				return Integer.MIN_VALUE;
 			
-//			for (int col = 0; col < this.topCopy.length; col++){
-//				int startRow = this.topCopy[col];
-//				boolean getDown = false;
-//				while(startRow > 0 && (fullRow[startRow] || getField()[startRow][col] == 0)) {
-//					startRow--;
-//					getDown = true;
-//				}
-//				
-//				if(getDown) startRow++;
-//				
-//				topCopy[col] = startRow;
-//			}
-//			
-//			for (int col = 0; col < this.topCopy.length; col++){
-//				for (int row = this.topCopy[col] ; row > 0 ; row--) {
-//					if(fullRow[row])
-//						this.topCopy[col]--;
-//				}
-//			}
-			
 			int[] bumpinessAndHeight = getBumpinessAndHeight();
-			int[] heuristics = {rowsCleared,
-								getHoles(),
-								bumpinessAndHeight[0],
-								bumpinessAndHeight[1] };
-
-			System.arraycopy(heuristics, 0, latestHeuristics, 0, latestHeuristics.length);
+			latestHeuristics[ROWS_CLEARED] = rowsCleared;
+			latestHeuristics[HOLES] = getHoles();
+			latestHeuristics[BUMPINESS] = bumpinessAndHeight[0];
+			latestHeuristics[HEIGHT] = bumpinessAndHeight[1];
 			
 			//score/evaluation function is dot product of heuristics[4] and weights[4]
-			for (int i = 0; i < heuristics.length; i++)
-				score += heuristics[i] * weights[i];
+			float score = 0;
+			for (int i = 0; i < latestHeuristics.length; i++)
+				score += latestHeuristics[i] * weights[i];
 			
 			//Reset the field
 			int[][] field = getField();
@@ -119,11 +113,24 @@ public class PlayerSkeleton {
 			
 		}
 		
-		/**
-		 * Play the given move on our local copy of the board.
-		 * @return Number of rows cleared by the move.
+		/* Play the given move on our local copy of the board.
+		 * Return the number of rows cleared by the move, or -1
+		 * if the move makes us lose the game.
+		 * 
+		 * Most of the code of this method is the same as "makeMove"
+		 * in the State class.
 		 */
 		private int dryRunMove(int piece, int orient, int slot) {
+			/* Note that here we want to modify the field as little as possible,
+			 * to roll back our changes easily. Copying the field and playing on
+			 * the copy is a very inefficient operation (earlier profiling showed
+			 * that with that method, copying took over 99% of the runtime of the
+			 * algorithm).
+			 * 
+			 * In particular, we don't "slide down" the bricks when a row is full.
+			 * This is not a problem when computing the heuristics.
+			 */
+			
 			int[][] field = getField();
 			//height if the first column makes contact
 			int height = topCopy[slot]-State.getpBottom()[piece][orient][0];
@@ -132,6 +139,7 @@ public class PlayerSkeleton {
 				height = Math.max(height,topCopy[slot+c]-State.getpBottom()[piece][orient][c]);
 			}
 			
+			//If we lost, return -1 for the number of rows cleared.
 			if(height+State.getpHeight()[piece][orient] >= ROWS)
 				return -1;
 			
@@ -139,6 +147,7 @@ public class PlayerSkeleton {
 			for(int i = 0; i < State.getpWidth()[piece][orient]; i++)
 				for(int h = height+State.getpBottom()[piece][orient][i]; h < height+State.getpTop()[piece][orient][i]; h++) {
 					field[h][i+slot] = -1;
+					//Remember that we modified this to clear it later
 					piecePosition.add(new Coord(h, i+slot));
 				}
 			
@@ -163,11 +172,10 @@ public class PlayerSkeleton {
 						break;
 					}
 				}
-				//if the row was full - remove it and slide above stuff down
+				//if the row was full - record it and update the top for the columns.
 				if(full) {
 					fullRow[r] = true;
 					rowsCleared++;					
-					//for each column
 					for(int c = 0; c < COLS; c++) {
 						//lower the top
 						topCopy[c]--;
@@ -182,15 +190,21 @@ public class PlayerSkeleton {
 		
 	}
 
-	//each indiviual is a instance of the game
+	/**
+	 * An individual of the genetic algorithm. Contains a game
+	 * state, the features (i.e. weights of the heuristics) and the
+	 * ability to play a game.
+	 */
 	private class Individual implements Comparable<Individual> {
-		//weights are in the order: Rows Cleared, Holes,bumpiness ,Height 
 		public float[] features = new float[NUM_FEATURES];
 		public float fitness;
 		public StateEx state = new StateEx();
 		
 		private float EPSILON = 0.0001f;
 		
+		/**
+		 * @param random Indicates whether the features should be initialized to random values or not.
+		 */
 		public Individual(boolean random) {
 			fitness = 0;
 			if(random) {
@@ -213,6 +227,11 @@ public class PlayerSkeleton {
 			}
 		}
 		
+		/**
+		 * Compare this Individual with another. The natural ordering 
+		 * of individuals is decreasing order of fitness: An individual
+		 * with larger fitness is "smaller" so that it sorts first. 
+		 */
 		public int compareTo(Individual a) {
 			//"Natural ordering" means larger fitness first
 			if(Math.abs(fitness - a.fitness) < EPSILON)
@@ -222,6 +241,10 @@ public class PlayerSkeleton {
 			return 1;
 		}
 		
+		/**
+		 * Return a string representation of this Individual
+		 * (features and fitness).
+		 */
 		public String toString() {
 			return Arrays.toString(this.features) + " (fitness " + fitness + ")";
 		}
@@ -230,49 +253,30 @@ public class PlayerSkeleton {
 			state = new StateEx();
 		}
 		
-		public boolean a2deq(int[][] a, int[][] b) {
-			if(a.length != b.length) return false;
-			for(int i = 0; i < a.length ; i++) {
-				if(a[i].length != b[i].length) return false;
-				for(int j = 0 ; j < a[i].length ; j++) {
-					if(a[i][j] != b[i][j]) return false;
-				}
-			}
-			
-			return true;
-		}
-		
-		public boolean a1eq(int[] a, int b[]) {
-			if(a.length != b.length)
-				return false;
-			for(int i = 0 ; i < a.length ; i++) {
-				if (a[i] != b[i]) return false;
-			}
-			return true;
-		}
-		
+		/**
+		 * Have this individual play one game, using on its features.
+		 * @return The number of rows cleared this game.
+		 */
 		public int play() {
 			
 			float maxScore;
 			int bestMove;
-			int[] bestHeuristics = new int[4];
-			int[] bestTop = new int[State.COLS];
 			
 			while(!state.hasLost()) {
 				int[][] legalMoves = state.legalMoves();
 				maxScore = Float.NEGATIVE_INFINITY;
 				bestMove = -1;
 				
+				/* Test every move against the board, and pick the one
+				 * that maximizes the score of the resulting board,
+				 * according to our own weights. */
 				for (int i = 0; i < legalMoves.length; i++){
 					float moveScore = this.state.testMove(legalMoves[i][State.ORIENT], 
 														legalMoves[i][State.SLOT], 
 														this.features);
-					
 					if (moveScore > maxScore){
 						maxScore = moveScore;
 						bestMove = i;
-						System.arraycopy(state.latestHeuristics, 0, bestHeuristics, 0, 4);
-						System.arraycopy(state.topCopy, 0, bestTop, 0, State.COLS);
 					}
 				}
 
@@ -309,7 +313,9 @@ public class PlayerSkeleton {
 		System.out.println("You have completed "+s.getRowsCleared()+" rows.");*/
 	}
 	
-	/* FITNESS */
+	/* Compute the fitness of this individual.
+	 * Fitness is defined as the sum of rows cleared
+	 * over a certain number of games. */
 	private void fitness(Individual in) {
 		int totalFitness = 0;
 		for(int i = 0 ; i < NUM_GAMES_PER_GEN ; i++) {
@@ -320,19 +326,23 @@ public class PlayerSkeleton {
 		in.fitness = totalFitness;
 	}
 	
-	/* GENERIC GENETIC ALGORITHM STUFF DOWN HERE. */
+	/* ==========================================
+	 * GENERIC GENETIC ALGORITHM STUFF DOWN HERE. 
+	 * ======================================= */
 	
+	/* Take the given parent individuals and generate a set
+	 * of new individuals that inherit their features
+	 * from the parents. */
 	private Individual[] combine(Individual[] gen) {
-		//For each pair of individuals, randomly select features from
-		//either one or the other to assign to each new individual.
+		/* For each pair of individuals, randomly select features from
+		 * either one or the other to assign to each new individual. */
 		Individual[] newGen = new Individual[gen.length];
 		for(int i = 0 ; i < gen.length - 1 ; i += 2) {
 			Individual a = new Individual(false);
 			Individual b = new Individual(false);
 			
-			//Alternate method of breeding. Flip a coin on every feature to
-			//determine which child should inherit from whom. This might be
-			//better for the actual project?
+			/* Flip a coin on every feature to determine which 
+			 * child should inherit from whom. */
 			for(int j = 0 ; j < gen[i].features.length ; j++) {
 				if(RANDOM.nextBoolean()) {
 					a.features[j] = gen[i].features[j];
@@ -342,17 +352,7 @@ public class PlayerSkeleton {
 					b.features[j] = gen[i].features[j];
 				}
 			}
-			/*
-			int split = RANDOM.nextInt(gen[i].features.length);
-			for(int j = 0 ; j < split ; j++) {
-				a.features[j] = gen[i].features[j];
-				b.features[j] = gen[i+1].features[j];
-			}
-			for(int j = split ; j < gen[i].features.length ; j++) {
-				a.features[j] = gen[i+1].features[j];
-				b.features[j] = gen[i].features[j];
-			}*/
-			
+
 			newGen[i] = a;
 			newGen[i+1] = b;
 		}
@@ -380,6 +380,11 @@ public class PlayerSkeleton {
 		}
 	}
 	
+	/* Run a genetic algorithm. Create num_gens generations of gen_size individuals,
+	 * with a mutation rate of mutation. At every generation, the fitness of every
+	 * individual is computed. Then, the best individuals are selected and bred to
+	 * create new individuals. These new individuals have a small chance of mutating.
+	 */
 	private void genetic(final int gen_size, final int num_gens, final float mutation) {
 		Individual[] current_gen = new Individual[gen_size];
 		Individual[] better_half = new Individual[gen_size/2];
@@ -390,11 +395,11 @@ public class PlayerSkeleton {
 		for(int i = 0 ; i < gen_size ; i++)
 			current_gen[i] = new Individual(false);
 		
-		//Here we could just run forever, or ensure that our fitness function
-		//never returns 1. Or stop after some amount of iterations.
 		while(k < num_gens) {
 			for(int i = 0 ; i < current_gen.length ; i++) {
 				fitness(current_gen[i]);
+				/* With natural ordering, individuals with high fitness will be at
+				 * the front of the priority queue. */
 				leaderboard.add(current_gen[i]);
 			}
 			
@@ -405,7 +410,6 @@ public class PlayerSkeleton {
 			for(int i = 0 ; i < current_gen.length / 2 ; i++) {
 				Individual in = leaderboard.remove();
 				better_half[i] = in;
-				//System.out.println(in.toString());
 			}
 			leaderboard.clear();
 			
