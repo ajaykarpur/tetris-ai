@@ -21,7 +21,7 @@ public class PlayerSkeleton {
 	private static Random RANDOM = new Random();
 	
 	/* Each individual plays this number of games per generations. */
-	private final static int NUM_GAMES_PER_GEN = 60;
+	private final static int NUM_GAMES_PER_GEN = 20;
 	
 	private PriorityQueue<Individual> leaderboard;
 	
@@ -107,7 +107,7 @@ public class PlayerSkeleton {
 			latestHeuristics[AGGREGATE_HEIGHT] = bumpinessAndHeight[1];
 			
 			//score/evaluation function is dot product of heuristics and weights
-			float score = 0;
+			float score = 0.0f;
 			for (int i = 0; i < NUM_FEATURES; i++)
 				score += latestHeuristics[i] * weights[i];
 			
@@ -228,6 +228,12 @@ public class PlayerSkeleton {
 				}
 			} else {
 				
+//				features[ROWS_CLEARED] = 0.3462777f;
+//				features[BUMPINESS] = -0.9041524f;
+//				features[AGGREGATE_HEIGHT] = -0.22584862f;
+//				features[HOLES] = 0.00048035383f;
+				
+				//lee yuan weights
 				features[ROWS_CLEARED] = 0.760666f;
 				features[BUMPINESS] = -0.184483f;
 				features[AGGREGATE_HEIGHT] = -0.510066f;
@@ -315,7 +321,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(100, 1000, 0.05f, 0.05f, false, 5);
+			p.genetic(1000, 1000, 0.05f, 0.025f, false, 5);
 			return;
 		}
 		
@@ -398,7 +404,10 @@ public class PlayerSkeleton {
 	 * individual is computed. Then, the best individuals are selected and bred to
 	 * create new individuals. These new individuals have a small chance of mutating.
 	 */
-	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism, final boolean variable, final float smoothing) {
+	/*If vary_mutation is true it will use variable mutation. With this the mutation rate varies depending on the whether or not
+	 * the agent's fitness is increasing, decreasing or has converged. Uses a vector of several individuals to determine the progress of the fitness function
+	 */
+	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism, final boolean vary_mutation, final float smoothing) {
 		final int num_top = (int) (gen_size * elitism);
 		
 		Individual[] current_gen = new Individual[gen_size];
@@ -420,14 +429,14 @@ public class PlayerSkeleton {
 		
 		int k = 0;
 		
+		
 		float variable_mutation = mutation;
-				
+		current_gen[0] = new Individual(false);		
 		//Create first generation
-		for(int i = 0 ; i < gen_size ; i++)
+		for(int i = 1 ; i < gen_size ; i++)
 			current_gen[i] = new Individual(true);
 		
-//		while(k < num_gens) {
-		while(true) {
+		while(k < num_gens) {
 			System.out.print("Generation " + k + "... ");
 			ExecutorService executor = Executors.newFixedThreadPool(gen_size);
 			
@@ -453,6 +462,7 @@ public class PlayerSkeleton {
 			
 			current_gen = combine(elite, gen_size);
 			
+			//smoothing is the number of generations in a vector
 			if ((k+1) == smoothing)
 			{
 				float sum = 0.0f;
@@ -461,7 +471,7 @@ public class PlayerSkeleton {
 				previous_mean = sum/((float)fitness_queue.size());
 			}
 			
-			if (variable && (k + 1) > smoothing)
+			if (vary_mutation && (k + 1) > smoothing)
 			{
 				float[] progress_mean = progress(previous_mean, fitness_queue, 0.05f);
 				
@@ -492,6 +502,10 @@ public class PlayerSkeleton {
 		};
 	}
 	
+	
+	/*function to calculate the progress of a vector of individuals 
+	 * 
+	 */
 	private float[] progress(float previous_mean, LinkedHashMap<Integer, Float> queue, float change_threshold)
 	{
 		float sum = 0.0f;
@@ -509,7 +523,11 @@ public class PlayerSkeleton {
 		
 		return new float[] {progress_vector, mean};
 	}
+
 	
+	/*implements a runnable thread to for multi-threading
+	 * each fitness function gets it's own thread as it is the most cpu intensive 
+	 */
 	public class FitnessThread implements Runnable
 	{
 		private Individual in;
