@@ -21,7 +21,7 @@ public class PlayerSkeleton {
 	private static Random RANDOM = new Random();
 	
 	/* Each individual plays this number of games per generations. */
-	private final static int NUM_GAMES_PER_GEN = 15;
+	private final static int NUM_GAMES_PER_GEN = 60;
 	
 	private PriorityQueue<Individual> leaderboard;
 	
@@ -255,7 +255,7 @@ public class PlayerSkeleton {
 		 * (features and fitness).
 		 */
 		public String toString() {
-			return Arrays.toString(this.features) + " (fitness " + fitness + ")";
+			return Arrays.toString(this.features) + " (fitness " + (fitness/(float)NUM_GAMES_PER_GEN) + ")";
 		}
 		
 		public void resetState() {
@@ -315,7 +315,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(500, 100, 0.05f, 0.05f, false, 5);
+			p.genetic(100, 1000, 0.05f, 0.05f, false, 5);
 			return;
 		}
 		
@@ -426,7 +426,8 @@ public class PlayerSkeleton {
 		for(int i = 0 ; i < gen_size ; i++)
 			current_gen[i] = new Individual(true);
 		
-		while(k < num_gens) {
+//		while(k < num_gens) {
+		while(true) {
 			System.out.print("Generation " + k + "... ");
 			ExecutorService executor = Executors.newFixedThreadPool(gen_size);
 			
