@@ -1,4 +1,4 @@
-\documentclass[10pt,a4paper]{report}
+\documentclass[12pt,a4paper]{report}
 
 \usepackage{fullpage}
 \usepackage{amsmath}
@@ -12,67 +12,73 @@
 \renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
 \renewcommand{\bibname}{References}
 
-\title{Dead Man's Tetris (feat. Captain Murphy and Snoop Dogg)}
+\title{Dead Man's Tetris}
 \author{Joshua Cheung (A0134910N)\\Ajay Karpur (A0132198A)\\Frederic Lafrance (A0134784X)\\Iain Meeke (A0132729A)}
 
 \begin{document}
 \maketitle
 
-\tableofcontents
+%\tableofcontents
 
 \section{Introduction}
-We considered three different approaches for this assignment: neural networks, particle swarm and genetic algorithms. We chose to implement genetic algorithms because we felt that it would be easier to implement and to parallelize (i.e. having multiple cores play the game and learn it at the same time). The neural networks approach seemed promising, but it is a supervised learning method and we did not find enough training data that we could have used. We considered using video data of record Tetris games, using Amazon's Mechanical Turk service to annotate the games. However, we decided that this would take a long time and would be impractical (for example, we would have to review the annotations ourselves).
-
-For scaling, we had planned to implement multithreading for use on our four-core laptops or on a 32-core EC2 instance on AWS. However, we didn't do this because we didn't manage to make our player learn well enough.
+We considered three different approaches for this assignment: neural networks, particle swarm and genetic algorithms. We chose to implement genetic algorithms because we felt that it would be easier to implement and to parallelize (i.e. having multiple cores play the game and learn it at the same time). The neural networks approach seemed promising, but it is a supervised learning method and we did not find enough training data that we could have used. We considered using video data of record Tetris games, potentially annotated using Amazon’s Mechanical Turk service. However, we decided that this would take a long time and would be impractical (for example, we would have to review the annotations ourselves). This paper covers details on the heuristics we use to ranking boards, our learning method, the results we obtained and strategies for scaling our method to large amounts of Tetris data.
 
 \section{Heuristics and Evaluation Function}
 We decided that it would be best to have a low number of heuristics, for two reasons. First, it is easy to reason about a few heuristics and to compute them by hand for testing reasons. Second, having fewer heuristics lowers the memory footprint and the computation time of fitness values, which is important in the context of scaling the algorithm to large numbers of Tetris games.
 
-Heuristics are evaluated by qualities of a board state after a move to be considered is performed. The most important indicator of a high performing agent is one that produces the highest score before losing, or highest number of cleared rows (without multipliers), which is the heuristic we want maximized. Other negative qualities of a board state were holes - empty squares in the board that have filled squares in the same column above them - , sum of the heights of the columns, and bumpiness - the total absolute differences in height between adjacent columns. These were anticipatory qualities that would increase the chance of a lost game, so it was necessary to quantify them immediately. The dot product of an array of the heuristics and an array of weights, floats between -1 and 1, make up the evaluation function which the agent uses to select which legal move is best to make. A learning method must be employed to determine which set of weights is optimal to providing an agent with the highest performance, the highest number of rows cleared.
+Heuristics are evaluated by qualities of a board state after a move to be considered is performed. The most important indicator of a high performing agent is one that produces the highest score before losing, or highest number of cleared rows (without multipliers), which is the heuristic we want maximized. Other negative qualities of a board state were holes (empty squares in the board that have filled squares in the same column above them) , sum of the heights of the columns, and bumpiness (the total absolute differences in height between adjacent columns). \cite{leeyiyuan2013tetris} These are anticipatory qualities that increase the chance of a lost game (and are generally regarded as poor play), so we decided to include them as heuristics. To evaluate the desirability of a given board, we use a weighted sum of these heuristics. At every step, we simply choose a move by testing all legal possibilities and picking the one that results in the most desirable board. For our AI player, the problem thus becomes: what set of weights will clearly differentiate between good boards and bad boards? This is where the learning method comes in.
 
 \cite{leeyiyuan2013tetris}
 \cite{lindstedt2013extreme}
 
 \section{Learning Method}
-As mentioned above we implemented a learning algorithm. We decided to use the genetic algorithm to mutate and improve an initial set of weights. A population is represented by individuals who play a set of games using its randomly initial set of weights. Based on its weights it assesses each move and makes the move with the best result. Every time the individual clears a row it adds a point to its score. 
+We decided to use a genetic algorithm to mutate and improve an initial set of weights, converging at the set which provides the highest fitness function. We maintain a population of individuals who play a given number of games using the heuristics above and a personal set of weights to rank the boards. The fitness of an individual is defined as the aggregate score over all its games.
 
-Once all of the individuals have played a specified number of games we order them by score and choose the top scoring half to evolve to the next generation. The process of evolution was done by crossover and then a random mutation. The crossover involved creating two individuals whose weights are taken randomly from either the best or second best scoring individual. This is repeated for all of the individuals who scored in the top half, with each individual creating two new individuals. 
+Once all of the individuals have played their games, we order them by fitness and select the elite (the top elitism%, where elitism is a parameter to the algorithm), to carry over to the next generation. The process of evolution is done by crossover and then a random mutation. The crossover operates on two parent individuals and creates two child individuals; for each feature, we flip a coin to determine whether the first parent will give its feature to the first or the second child (the second parent gives its feature to the other child). We thus repeatedly choose two random and distinct individuals from the elite, and apply the crossover to generate two new individuals. This process is repeated until enough new individuals have been generated.
 
-The new generation is then put through a mutation process. Here we randomly choose a percentage of individuals to mutate based on a mutation rate. The chosen individuals then have their features increased or decreased by a random amount. The function of the mutation rate is to avoid getting stuck in a local maxima. Although the crossover function serves as a good process of evolution it runs the risk of selecting the same best weights continuously. After enough generations the mutation function should edit these weights to produce a better score and the crossover will favour these new individuals.
+The new generation is then put through a mutation process. Every individual has a small chance (a few percent at most) of “mutating”. When an individual mutates, a random feature is changed to a new random value between -1 and 1. The mutation operation is used to prevent the individuals from getting stuck in a local maximum, wherein most top individuals have very similar weights. By randomly mutating individuals, we allow “sideways” moves through the search space.
 
-This learning method is continued until the scores produced from generations converge to an optimum set of weights for the given heuristics.
-
-\subsection{Genetic algorithm parameters}
--Z population size
--X mutation rate
--Y games each individual plays per generation
-
-To speed up the learning process, the board height was reduced from 21 rows to 11 with the same width, anticipating a drop in fitness function while maintaining a large enough board to mimic performance on an actual board size. Further considerations to speed up the learning process are discussed in scaling considerations.
+This sequence of events (game playing, crossover and mutation) is known as a generation. Our learning method is simply to evolve individuals through a large number of generations, and stop once the weights seem to converge.
 
 \section{Experimental Results}
-We experimented with chosen algorithm by varying all the parameters that affect the evolution of generations. These were the heuristics chosen, the mutation rate and process, the crossover process, population size and number of games played per individual. Unfortunately the results showed no learning progress.
+We experimented with chosen algorithm by varying all the parameters that affect the evolution of generations. These were the heuristics chosen, the mutation rate and process, the crossover process, population size and number of games played per individual. Below are the parameters which gave us the best performance:
+
+\begin{itemize}
+\item Z population size
+\item X mutation rate
+\item Y games each individual plays per generation
+\item W elitism
+\end{itemize}
+
+To speed up the learning process, the board height was reduced from 21 rows to 11 with the same width, anticipating a drop in fitness function while maintaining a large enough board to mimic performance on an actual board size. We also implemented strategies to ensure the learning progress was efficient over a large amount of tetris games, discussed under scaling considerations. Table 1 shows the learning progress over generations below.
+
+[table of fitness progress and convergence]
 
 \section{Observations and Analysis}
-We observed a fitness that remained roughly the same for each generation. This indicated that our algorithm was not learning.
+Many observations were made about how the genetic algorithm parameters affect the learning outcome and which parameters are ideal for our application, especially the elitism percentage on the population size. First, the population size had to be sufficiently large as a search space but not so large to slow the learning progress with no effective progress. Within a large population size, the elitism percentage has to be small enough to be selective. The initial elitism percentage was 50\% and we were unable to see learning progress on different sets of the other parameters, as the performance fluctuated with no upward trend due to a high elitism percentage including individuals with low performance to breed. Additionally, too low of an elitism rate would cause inbreeding among the few individuals survived, preventing variations of the succeeding generation.
 
 \section{Scaling considerations}
-The following are ideas that we considered to ensure that our system would be able to scale to large amounts of tetris games. Unfortunately, we did not implement any of these because, as explained before, we were unable to make our agent actually learn. However, we have a fairly precise idea of how we would go about implementing them, which is detailed below.
+The following are ideas that we considered to ensure that our system would be able to scale to large amounts of tetris games, including novel ways of monitoring progress to change parameters that speed up learning.
 
 \subsection{Learning cessation}
 One important part when learning a problem is knowing when no more progress is made and deciding to quit learning. This is a problem that has been studied in particular with neural networks. In \cite{shultz2012knowing}, Shultz et al. introduce two parameters to control learning cessation: threshold and patience. Threshold specifies what is considered progress from one generation / learning cycle to the next, in terms of absolute difference between scores. Patience indicates how many consecutive generations without progress we are willing to tolerate before stopping the algorithm. In our case, we would measure threshold against the best individual of each generation. As long as the best fitness would vary by a value of at least threshold from one generation to the next, we would consider this generation to have progressed. After patience generations without progress, we declare that the algorithm has stalled and stop it. This is useful when scaling as it can prevent us from doing unproductive work (i.e. running generations even though no improvement occurs). Hence, we can potentially save a lot of time when learning without compromising the quality of our best individuals.
 
 \subsection{Parallelism}
 Genetics algorithms have one part that can easily be parallelized, which also happens to be the most expensive in our case: calculating the fitness values for each individual. As detailed before, each individual of a generation plays 15 games, and its fitness is the sum of the scores for those games. Clearly, every fitness computation may run in parallel. We can thus start a number of worker threads and have each of them take one individual, compute its fitness and repeat the process until all individuals have had their fitness computed. Since every generation typically contains at least tens of individuals, we can expect large speedups in this part of the algorithm.
-\textit{TODO measure how long the fitness computing part takes and present some figure of how much speedup we could gain (Amdahl's law fuck yeah!)}
 
 \subsection{Variable mutation rate}
-We came up with the novel idea of modulating the mutation rate based on how quickly the algorithm is learning. If the fitness has not changed significantly for several continuous generations (flatlining), we planned to increase the mutation rate. If we notice that the fitness is oscillating or otherwise behaving in a volatile manner, we planned to decrease the mutation rate.
-
+We came up with the novel idea of modulating the mutation rate based on how quickly the algorithm is learning. If the fitness has not changed significantly for several continuous generations i.e. flatlining, we increase the mutation rate to break out of local maxima as fast as possible. If we notice that the fitness is oscillating or otherwise behaving in a volatile manner, we decrease the mutation rate to enable steady increase without overshooting.
 
 \begin{appendices}
 \chapter*{Appendices}
 \section{Code organization and documentation}
-...
+The PlayerSkeleton file is organized as follows:
+\begin{itemize}
+\item Internal class StateEx: Inherits State, and contains some additional methods to test moves against the current state without modifying it.
+\item Internal class Individual: Used throughout the genetic algorithm implementation. Contains a set of weights for the heuristics and methods to play a game using the strategy described above.
+\item main method: Starts the program. If given the switch -g, the program attempts learning a new set of weights. Otherwise, it runs a game with a hardcoded set of weights that we found by experimentation.
+\item Genetic algorithm methods: These methods implement the core functions of the genetic algorithm, namely applying the mutation and crossover operators, computing the fitness of each individual and running each generation.
+\end{itemize}
 \end{appendices}
 
 \bibliographystyle{plain}

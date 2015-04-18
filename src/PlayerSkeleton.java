@@ -1,5 +1,7 @@
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Random;
 
@@ -220,10 +222,10 @@ public class PlayerSkeleton {
 				}
 			} else {
 				
-				features[ROWS_CLEARED] = 0.6f;
-				features[BUMPINESS] = -0.2f;
-				features[AGGREGATE_HEIGHT] = -0.7f;
-				features[HOLES] = -0.5f;
+				features[ROWS_CLEARED] = 0.760666f;
+				features[BUMPINESS] = -0.184483f;
+				features[AGGREGATE_HEIGHT] = -0.510066f;
+				features[HOLES] = -0.35663f;
 				
 			}
 		}
@@ -307,7 +309,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(500, 20, 0.05f, 0.1f);
+			p.genetic(1000, 100, 0.05f, 0.025f, true);
 			return;
 		}
 		
@@ -390,14 +392,17 @@ public class PlayerSkeleton {
 	 * individual is computed. Then, the best individuals are selected and bred to
 	 * create new individuals. These new individuals have a small chance of mutating.
 	 */
-	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism) {
+	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism, final boolean variable) {
 		final int num_top = (int) (gen_size * elitism);
 		
 		Individual[] current_gen = new Individual[gen_size];
 		Individual[] elite = new Individual[num_top];
 		Individual best = null;
 		PriorityQueue<Individual> leaderboard = new PriorityQueue<Individual>(gen_size);
+		ArrayList<Float> fitness_history = new ArrayList<Float>(num_gens);
 		int k = 0;
+		
+		float variable_mutation = mutation;
 		
 		//Create first generation
 		for(int i = 0 ; i < gen_size ; i++)
@@ -413,6 +418,7 @@ public class PlayerSkeleton {
 			}
 			
 			best = leaderboard.peek();
+			fitness_history.add(best.fitness);
 			System.out.println("best individual: " 
 					+ best.toString());
 			
@@ -422,12 +428,54 @@ public class PlayerSkeleton {
 			}
 			leaderboard.clear();
 			
+			
 			current_gen = combine(elite, gen_size);
-			mutate(current_gen, mutation);
+			
+			int buffer_length = 5;
+			
+			if (variable && fitness_history.size() > buffer_length)
+			{
+				List<Float> sublist = fitness_history.subList(k-buffer_length, k);
+				float progress = progress(sublist, 0.1f);
+				
+				// if no progress (flat), increase mutation rate
+				if (progress == 0.0f)
+				{
+					variable_mutation += 0.001f;
+					System.out.println("+ mutation rate increased to " + variable_mutation + " +");
+				}
+				// if losing progress (decreasing)
+				if (progress < 0.0f)
+				{
+					variable_mutation -= 0.001f;
+					System.out.println("- mutation rate decreased to " + variable_mutation + " -");
+				}
+				// if lots of progress (increasing), do not modify mutation rate
+			}
+			
+			mutate(current_gen, variable_mutation);
 			
 			k++;
 		};
 	}
 	
+	private float progress(List<Float> fitness_sublist, float change_threshold)
+	{
+		float vector = 0.0f;
+		float sum = fitness_sublist.get(0);
+		
+		for (int i = 1; i < fitness_sublist.size(); i++)
+		{
+			sum += fitness_sublist.get(i);
+			vector += fitness_sublist.get(i) - fitness_sublist.get(i-1);
+		}
+		
+		float mean = sum/((float)fitness_sublist.size());
+		
+		if (Math.abs(vector) < (change_threshold*mean))
+			vector = 0.0f;
+		
+		return vector;
+	}
 	
 }
