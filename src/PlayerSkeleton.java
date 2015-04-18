@@ -1,7 +1,9 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.PriorityQueue;
 import java.util.Random;
 import java.util.concurrent.ExecutorService;
@@ -313,7 +315,7 @@ public class PlayerSkeleton {
 		PlayerSkeleton p = new PlayerSkeleton();
 		
 		if(args.length > 0 && args[0].equals("-g")) {
-			p.genetic(1000, 100, 0.05f, 0.025f, true);
+			p.genetic(500, 100, 0.05f, 0.05f, false, 5);
 			return;
 		}
 		
@@ -396,14 +398,26 @@ public class PlayerSkeleton {
 	 * individual is computed. Then, the best individuals are selected and bred to
 	 * create new individuals. These new individuals have a small chance of mutating.
 	 */
-	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism, final boolean variable) {
+	private void genetic(final int gen_size, final int num_gens, final float mutation, final float elitism, final boolean variable, final float smoothing) {
 		final int num_top = (int) (gen_size * elitism);
 		
 		Individual[] current_gen = new Individual[gen_size];
 		Individual[] elite = new Individual[num_top];
 		Individual best = null;
 		leaderboard = new PriorityQueue<Individual>(gen_size);
-		ArrayList<Float> fitness_history = new ArrayList<Float>(num_gens);
+//		ArrayList<Float> fitness_history = new ArrayList<Float>(num_gens);
+		LinkedHashMap<Integer, Float> fitness_queue = new LinkedHashMap<Integer, Float>()
+		{
+			private static final long serialVersionUID = 3289198056433320233L;
+
+			@Override
+			protected boolean removeEldestEntry(Map.Entry<Integer, Float> eldest)
+			{
+				return this.size() > smoothing;   
+			}
+		};
+		float previous_mean = 0.0f;
+		
 		int k = 0;
 		
 		float variable_mutation = mutation;
@@ -425,9 +439,9 @@ public class PlayerSkeleton {
 			while (!executor.isTerminated()) {}
 			
 			best = leaderboard.peek();
-			fitness_history.add(best.fitness);
-			System.out.println("best individual: " 
-					+ best.toString());
+			fitness_queue.put(k, best.fitness);
+			System.out.print("best individual: " 
+					+ best.toString() + " ");
 			
 			for(int i = 0 ; i < num_top ; i++) {
 				Individual in = leaderboard.remove();
@@ -438,27 +452,38 @@ public class PlayerSkeleton {
 			
 			current_gen = combine(elite, gen_size);
 			
-			int buffer_length = 5;
-			
-			if (variable && fitness_history.size() > buffer_length)
+			if ((k+1) == smoothing)
 			{
-				List<Float> sublist = fitness_history.subList(k-buffer_length, k);
-				float progress = progress(sublist, 0.1f);
+				float sum = 0.0f;
+				for (float fitness : fitness_queue.values())
+					sum += fitness;
+				previous_mean = sum/((float)fitness_queue.size());
+			}
+			
+			if (variable && (k + 1) > smoothing)
+			{
+				float[] progress_mean = progress(previous_mean, fitness_queue, 0.05f);
+				
+				System.out.print(progress_mean[1]);
 				
 				// if no progress (flat), increase mutation rate
-				if (progress == 0.0f)
+				if (progress_mean[0] == 0.0f)
 				{
 					variable_mutation += 0.001f;
-					System.out.println("+ mutation rate increased to " + variable_mutation + " +");
+					System.out.print("\n+ mutation rate increased to " + variable_mutation + " +");
 				}
 				// if losing progress (decreasing)
-				if (progress < 0.0f)
+				if (progress_mean[0] < 0.0f)
 				{
 					variable_mutation -= 0.001f;
-					System.out.println("- mutation rate decreased to " + variable_mutation + " -");
+					System.out.print("\n- mutation rate decreased to " + variable_mutation + " -");
 				}
 				// if lots of progress (increasing), do not modify mutation rate
+				
+				previous_mean = progress_mean[1];
 			}
+			
+			System.out.println();
 			
 			mutate(current_gen, variable_mutation);
 			
@@ -466,23 +491,22 @@ public class PlayerSkeleton {
 		};
 	}
 	
-	private float progress(List<Float> fitness_sublist, float change_threshold)
+	private float[] progress(float previous_mean, LinkedHashMap<Integer, Float> queue, float change_threshold)
 	{
-		float vector = 0.0f;
-		float sum = fitness_sublist.get(0);
+		float sum = 0.0f;
+		float progress_vector = 0.0f;
 		
-		for (int i = 1; i < fitness_sublist.size(); i++)
-		{
-			sum += fitness_sublist.get(i);
-			vector += fitness_sublist.get(i) - fitness_sublist.get(i-1);
-		}
+		for (float fitness : queue.values())
+			sum += fitness;
 		
-		float mean = sum/((float)fitness_sublist.size());
+		float mean = sum/((float)queue.size());
 		
-		if (Math.abs(vector) < (change_threshold*mean))
-			vector = 0.0f;
+		progress_vector = (mean - previous_mean)/previous_mean;
 		
-		return vector;
+		if (Math.abs(progress_vector) < change_threshold)
+			progress_vector = 0.0f;
+		
+		return new float[] {progress_vector, mean};
 	}
 	
 	public class FitnessThread implements Runnable
