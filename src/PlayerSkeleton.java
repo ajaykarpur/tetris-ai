@@ -4,6 +4,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.PriorityQueue;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class PlayerSkeleton {
 	 
@@ -18,6 +20,8 @@ public class PlayerSkeleton {
 	
 	/* Each individual plays this number of games per generations. */
 	private final static int NUM_GAMES_PER_GEN = 15;
+	
+	private PriorityQueue<Individual> leaderboard;
 	
 	/**
 	 * A pair of integers. Java does not provide a generic pair class.
@@ -398,24 +402,27 @@ public class PlayerSkeleton {
 		Individual[] current_gen = new Individual[gen_size];
 		Individual[] elite = new Individual[num_top];
 		Individual best = null;
-		PriorityQueue<Individual> leaderboard = new PriorityQueue<Individual>(gen_size);
+		leaderboard = new PriorityQueue<Individual>(gen_size);
 		ArrayList<Float> fitness_history = new ArrayList<Float>(num_gens);
 		int k = 0;
 		
 		float variable_mutation = mutation;
-		
+				
 		//Create first generation
 		for(int i = 0 ; i < gen_size ; i++)
 			current_gen[i] = new Individual(true);
 		
 		while(k < num_gens) {
 			System.out.print("Generation " + k + "... ");
+			ExecutorService executor = Executors.newFixedThreadPool(gen_size);
+			
 			for(int i = 0 ; i < current_gen.length ; i++) {
-				fitness(current_gen[i]);
-				/* With natural ordering, individuals with high fitness will be at
-				 * the front of the priority queue. */
-				leaderboard.add(current_gen[i]);
+				FitnessThread thread = new FitnessThread(current_gen[i]);
+				executor.execute(thread);
 			}
+			
+			executor.shutdown();
+			while (!executor.isTerminated()) {}
 			
 			best = leaderboard.peek();
 			fitness_history.add(best.fitness);
@@ -476,6 +483,36 @@ public class PlayerSkeleton {
 			vector = 0.0f;
 		
 		return vector;
+	}
+	
+	public class FitnessThread implements Runnable
+	{
+		private Individual in;
+		
+		public FitnessThread(Individual in)
+		{
+			this.in = in;
+		}
+		
+		@Override
+		public void run()
+		{
+			fitness(in);
+		}
+		
+		private void fitness(Individual in) {
+			int totalFitness = 0;
+			for(int i = 0 ; i < NUM_GAMES_PER_GEN ; i++) {
+				totalFitness += in.play(false);
+				in.resetState();
+			}
+			
+			in.fitness = totalFitness;
+			
+			/* With natural ordering, individuals with high fitness will be at
+			 * the front of the priority queue. */
+			leaderboard.add(in);
+		}
 	}
 	
 }
